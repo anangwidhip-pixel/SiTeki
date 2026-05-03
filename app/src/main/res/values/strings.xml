@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">SiTeki ver.01</string>
+
+    <array name="com_google_android_gms_fonts_certs">
+        <item>@array/com_google_android_gms_fonts_certs_dev</item>
+        <item>@array/com_google_android_gms_fonts_certs_prod</item>
+    </array>
+
+    <string-array name="com_google_android_gms_fonts_certs_dev">
+        <item>MIIEqDCCA5CgAwIBAgIJAN5m8K8... (isi sertifikat sangat panjang) ...</item>
+    </string-array>
+    <string-array name="com_google_android_gms_fonts_certs_prod">
+        <item>MIIEqDCCA5CgAwIBAgIJAN5m8K8... (isi sertifikat sangat panjang) ...</item>
+    </string-array>
+</resources>

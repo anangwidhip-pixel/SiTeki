@@ -1,0 +1,20 @@
+{
+  "data_per_jenis": [
+    {
+      "jenis": "Trailler",
+      "pencapaian": 100
+    },
+    {
+      "jenis": "Umum",
+      "pencapaian": 100
+    },
+    {
+      "jenis": "Bevel",
+      "pencapaian": 75
+    },
+    {
+      "jenis": "Pipa ERW",
+      "pencapaian": 50
+    }
+  ]
+}
