@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Parent theme ke Material3 yang kompatibel dengan Compose -->
+    <style name="Theme.SiTekiVer01" parent="Theme.Material3.DayNight.NoActionBar" />
+
+</resources>
