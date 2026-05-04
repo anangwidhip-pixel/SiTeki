@@ -65,6 +65,9 @@ dependencies {
     // Lottie
     implementation(libs.lottie.compose)
 
+    // Navigation
+    implementation(libs.androidx.navigation.compose)
+
     // CameraX and QR Scanner
     implementation("androidx.camera:camera-camera2:1.4.0")
     implementation("androidx.camera:camera-lifecycle:1.4.0")
