@@ -1,18 +1,19 @@
 package com.example.sitekiver01.screens
 
 import android.app.DatePickerDialog
+import android.util.Log
 import android.widget.Toast
-import androidx.compose.foundation.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -21,14 +22,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import com.example.sitekiver01.components.GlassCard
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.*
+import java.util.Calendar
+import java.util.Locale
 
 // --- DATA MODEL ---
 data class MasterRawat(
@@ -50,11 +56,12 @@ class PerawatanViewModel : ViewModel() {
 
     var isLoading by mutableStateOf(false)
 
+
     fun fetchData(onComplete: () -> Unit = {}) {
         isLoading = true
-        kotlinx.coroutines.GlobalScope.launch {
+
+        viewModelScope.launch(Dispatchers.IO) {   // ← Ganti GlobalScope
             try {
-                // URL DATABASE - Action: getRawatMaster (Sheet: Mesin_per)
                 val url = URL("https://script.google.com/macros/s/AKfycbwSnaaYVxXWVngeGQYU2im2G5FQ6L7WstjTkx7IW3jVYcuELECt0_cyvM0cFx4Uf8U/exec?action=getRawatMaster")
                 val conn = url.openConnection() as HttpURLConnection
                 val text = conn.inputStream.bufferedReader().use { it.readText() }
@@ -63,9 +70,8 @@ class PerawatanViewModel : ViewModel() {
                 allData.clear()
                 for (i in 0 until jsonArray.length()) {
                     val obj = jsonArray.getJSONObject(i)
-                    // Check for both "nama" and "nama_mesin" keys
                     val nameValue = if (obj.has("nama_mesin")) obj.getString("nama_mesin") else obj.optString("nama")
-                    
+
                     allData.add(MasterRawat(
                         obj.optString("kategori"),
                         obj.optString("jenis"),
@@ -78,12 +84,16 @@ class PerawatanViewModel : ViewModel() {
 
                 categories.clear()
                 categories.addAll(allData.map { it.kategori }.distinct().sorted())
-                isLoading = false
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+
+                withContext(Dispatchers.Main) {
+                    isLoading = false
                     onComplete()
                 }
             } catch (e: Exception) {
-                isLoading = false
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                    Log.e("PerawatanVM", "Error fetch: ${e.message}")
+                }
             }
         }
     }
@@ -109,6 +119,7 @@ class PerawatanViewModel : ViewModel() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun IsiPerawatanScreen(
+    navController: NavController? = null,
     initialMachine: String = "",
     initialDate: String = "",
     initialWaktu: String = "",
@@ -117,7 +128,7 @@ fun IsiPerawatanScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-
+    var isSubmitting by remember { mutableStateOf(false) }
     // Map status "M" -> "Mingguan" or "B" -> "Bulanan"
     val mappedWaktu = remember(initialWaktu) {
         when (initialWaktu) {
@@ -271,15 +282,48 @@ fun IsiPerawatanScreen(
                 onClick = {
                     if (tanggal.isEmpty() || selectedNama.isEmpty()) {
                         Toast.makeText(context, "Data belum lengkap!", Toast.LENGTH_SHORT).show()
-                    } else {
-                        submitData(context, tanggal, selectedKategori, selectedJenis, selectedNama, selectedWaktu, isianMap, keterangan)
+                        return@Button
                     }
+
+                    isSubmitting = true  // Pastikan ada state ini
+
+                    submitData(
+                        ctx = context,
+                        onSuccess = {
+                            if (navController != null) {
+                                navController.popBackStack()
+                            } else {
+                                onBack()
+                            }
+                        },
+                        tgl = tanggal,
+                        kat = selectedKategori,
+                        jen = selectedJenis,
+                        nama = selectedNama,
+                        waktu = selectedWaktu,
+                        dataItem = isianMap,
+                        ket = keterangan
+                    )
                 },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00BCD4)),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                enabled = !isSubmitting
             ) {
-                Text("SUBMIT DATA", fontWeight = FontWeight.Bold)
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    Text(
+                        "SUBMIT DATA",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                }
             }
         }
     }
@@ -313,20 +357,32 @@ fun MyDropdown(label: String, items: List<String>, selected: String, onSelect: (
     }
 }
 
-fun submitData(ctx: android.content.Context, tgl: String, kat: String, jen: String, nama: String, waktu: String, dataItem: Map<String, String>, ket: String) {
+fun submitData(
+    ctx: android.content.Context,
+    onSuccess: () -> Unit,
+    tgl: String,
+    kat: String,
+    jen: String,
+    nama: String,
+    waktu: String,
+    dataItem: Map<String, String>,
+    ket: String
+) {
     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
         try {
-            val urlTarget = "https://script.google.com/macros/s/AKfycbGXeVaZ640gmZGYqVYYZ7ZFPC4D9xSrp6wbal5U_sfx-8Sttf2Okz-ZN-Qgc7TuSU/exec"
-            val jsonObject = JSONObject()
-            jsonObject.put("tanggal", tgl)
-            jsonObject.put("kategori", kat)
-            jsonObject.put("jenis", jen)
-            jsonObject.put("nama_mesin", nama)
-            jsonObject.put("waktu", if (waktu == "Mingguan") "M" else "B")
-            jsonObject.put("keterangan", ket)
+            val urlTarget = "https://script.google.com/macros/s/AKfycbwQ7ocBNsl4x5-rGLrSyvkyluhSRl3B_LvmkA3cFuvuL9pBbVAOUI3i_Vu6jwfkfOA/exec"
 
-            dataItem.forEach { (key, value) ->
-                jsonObject.put(key, value)
+            val jsonObject = JSONObject().apply {
+                put("tanggal", tgl)
+                put("kategori", kat)
+                put("jenis", jen)
+                put("nama_mesin", nama)
+                put("waktu", if (waktu == "Mingguan") "M" else "B")
+                put("keterangan", ket)
+
+                dataItem.forEach { (key, value) ->
+                    put(key, value)
+                }
             }
 
             val url = URL(urlTarget)
@@ -334,24 +390,33 @@ fun submitData(ctx: android.content.Context, tgl: String, kat: String, jen: Stri
             conn.requestMethod = "POST"
             conn.doOutput = true
             conn.setRequestProperty("Content-Type", "application/json")
-            conn.instanceFollowRedirects = true
+            conn.setRequestProperty("Accept", "application/json")
 
             conn.outputStream.use { os ->
                 os.write(jsonObject.toString().toByteArray(Charsets.UTF_8))
             }
 
             val responseCode = conn.responseCode
-            val responseMessage = conn.inputStream.bufferedReader().use { it.readText() }
+            val responseBody = try {
+                conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            } catch (e: Exception) {
+                conn.errorStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
+            }
 
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                if (responseCode == HttpURLConnection.HTTP_OK || responseCode == 302) {
-                    Toast.makeText(ctx, "Data Berhasil Disimpan!", Toast.LENGTH_LONG).show()
+            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                if (responseCode in 200..299) {
+                    Toast.makeText(ctx, "✅ Data Berhasil Disimpan!", Toast.LENGTH_LONG).show()
+
+                    // KEMBALI KE HALAMAN SEBELUMNYA
+                    onSuccess()
+
                 } else {
-                    Toast.makeText(ctx, "Gagal: $responseMessage", Toast.LENGTH_LONG).show()
+                    Toast.makeText(ctx, "❌ Gagal: $responseBody", Toast.LENGTH_LONG).show()
                 }
             }
+
         } catch (e: Exception) {
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+            withContext(kotlinx.coroutines.Dispatchers.Main) {
                 Toast.makeText(ctx, "Error: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
