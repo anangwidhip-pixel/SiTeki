@@ -79,7 +79,7 @@ fun JadPerawatanScreen(
         errorMessage = null
         withContext(Dispatchers.IO) {
             try {
-                val url = URL("https://script.google.com/macros/s/AKfycbxGXeVaZ640gmZGYqVYYZ7ZFPC4D9xSrp6wbal5U_sfx-8Sttf2Okz-ZN-Qgc7TuSU/exec?action=getPerawatan")
+                val url = URL("https://script.google.com/macros/s/AKfycbwQ7ocBNsl4x5-rGLrSyvkyluhSRl3B_LvmkA3cFuvuL9pBbVAOUI3i_Vu6jwfkfOA/exec?action=getPerawatan")
                 val connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = "GET"
                 connection.connectTimeout = 15000
@@ -259,7 +259,7 @@ fun JadPerawatanContent(
                         }
                     }
                 }
-                
+
                 Box(modifier = Modifier.width(100.dp)) {
                     Surface(
                         modifier = Modifier
@@ -277,7 +277,7 @@ fun JadPerawatanContent(
             }
 
             Spacer(Modifier.height(16.dp))
-            
+
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 LegendItem(GlassAccentGreen, "Plan (M)")
                 LegendItem(Color(0xFF2563EB), "Plan (B)")
@@ -348,7 +348,7 @@ fun MaintenanceStickyTable(
 
     val scrollState = rememberScrollState()
     val nameColumnWidth = 130.dp
-    val dayCellWidth = 44.dp 
+    val dayCellWidth = 44.dp
     val headerHeight = 56.dp
     val dataRowHeight = 40.dp
 
@@ -396,7 +396,7 @@ fun MaintenanceStickyTable(
                 }
             }
         }
-        
+
         // HEADER ROW 2 (P/A)
         Row(modifier = Modifier.fillMaxWidth().background(GlassAccentCyan.copy(alpha = 0.05f))) {
             Box(
@@ -405,7 +405,7 @@ fun MaintenanceStickyTable(
                     .border(0.5.dp, GlassBorder),
                 contentAlignment = Alignment.CenterStart
             ) {}
-            
+
             Row(modifier = Modifier.horizontalScroll(scrollState)) {
                 for (i in 1..daysInMonth) {
                     Row(modifier = Modifier.width(dayCellWidth)) {
@@ -456,7 +456,7 @@ fun MaintenanceStickyTable(
                                 "B" -> Color(0xFF2563EB)
                                 else -> Color.Transparent
                             }
-                            
+
                             val aBgColor = when (actualMark) {
                                 "✓✓" -> Color(0xFF2563EB).copy(alpha = 0.2f)
                                 "✓" -> GlassAccentGreen.copy(alpha = 0.2f)
@@ -637,7 +637,7 @@ fun isIndonesianHoliday(day: Int, month: Int, year: Int): Boolean {
     val holidays2024 = mapOf(0 to listOf(1), 1 to listOf(8, 10), 2 to listOf(11, 29, 31), 3 to listOf(10, 11), 4 to listOf(1, 9, 23), 5 to listOf(1, 17), 6 to listOf(7), 7 to listOf(17), 8 to listOf(16), 11 to listOf(25))
     val holidays2025 = mapOf(0 to listOf(1, 27, 29), 1 to listOf(10), 2 to listOf(28, 29, 31), 3 to listOf(1, 18), 4 to listOf(1, 12, 29), 5 to listOf(1, 7, 27), 7 to listOf(17), 8 to listOf(5), 11 to listOf(25))
     val holidays2026 = mapOf(0 to listOf(1, 19), 1 to listOf(17), 2 to listOf(20, 21, 28), 3 to listOf(3, 5), 4 to listOf(1, 14, 31), 5 to listOf(1, 22), 7 to listOf(17), 8 to listOf(5), 11 to listOf(25))
-    
+
     val holidayMap = when (year) {
         2024 -> holidays2024
         2025 -> holidays2025

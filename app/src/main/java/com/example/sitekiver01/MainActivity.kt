@@ -17,11 +17,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.automirrored.rounded.Assignment
@@ -31,8 +29,6 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -56,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.window.Dialog
+import androidx.navigation.compose.rememberNavController
 import com.example.sitekiver01.screens.*
 import com.example.sitekiver01.ui.theme.*
 import kotlinx.coroutines.Dispatchers
@@ -63,7 +60,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
 import kotlin.math.absoluteValue
@@ -87,6 +83,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNavigation() {
     val context = LocalContext.current
+    val navController = rememberNavController()
     var currentScreen by remember { mutableStateOf(Screen.Dashboard) }
     var webUrl by remember { mutableStateOf("") }
     var webTitle by remember { mutableStateOf("") }
@@ -270,38 +267,32 @@ fun AppNavigation() {
                     Screen.DetailDowntime -> { DetailDowntimeScreen(onBack = { currentScreen = Screen.KPI }) }
                     Screen.Listrik -> {
                         CekListrikScreen(
-                            onBack = {
-                                if (editDataListrik != null) {
-                                    editDataListrik = null
-                                    currentScreen = Screen.Detaillistrik
-                                } else { currentScreen = Screen.Dashboard }
-                            },
+                            onBack = { currentScreen = Screen.Dashboard; selectedIndex = 0 },
                             onNavigateToDetail = { currentScreen = Screen.Detaillistrik },
-                            editData = editDataListrik
+                            editData = editDataListrik,
+                            onEditFinished = { editDataListrik = null }
                         )
                     }
                     Screen.Detaillistrik -> {
                         DataListrikScreen(
                             onBack = { currentScreen = Screen.Listrik },
-                            onEditData = { data -> editDataListrik = data; currentScreen = Screen.Listrik }
+                            onEditData = { data ->
+                                editDataListrik = data
+                                currentScreen = Screen.Listrik
+                            }
                         )
                     }
                     Screen.LapKerja -> {
                         LapKerjaScreen(
-                            modifier = modifierWithPadding,
                             onBack = { currentScreen = Screen.Dashboard; selectedIndex = 0 },
                             onNavigateToWebView = navigateToWebView,
                             onNavigateToIsiLaporan = { currentScreen = Screen.IsiLaporan }
                         )
                     }
-                    Screen.JadPerawatan -> {
-                        JadPerawatanScreen(
-                            onBack = { currentScreen = Screen.Dashboard; selectedIndex = 0 },
-                            onNavigateToWebView = navigateToWebView,
-                            onNavigateToIsiPerawatan = onNavigateToIsiPerawatan
-                        )
-                    }
                     Screen.IsiLaporan -> { IsiLaporanScreen(onBack = { currentScreen = Screen.LapKerja }) }
+                    Screen.JadPerawatan -> { JadPerawatanScreen(onBack = { currentScreen = Screen.Dashboard },
+                        onNavigateToIsiPerawatan = onNavigateToIsiPerawatan
+                    ) }
                     Screen.StokPart -> {
                         StokPartScreen(
                             onBack = { currentScreen = Screen.Dashboard },
@@ -316,7 +307,7 @@ fun AppNavigation() {
                             initialMachine = isiPerawatanMachine,
                             initialDate = isiPerawatanDate,
                             initialWaktu = isiPerawatanWaktu,
-                            onBack = { currentScreen = previousScreen }
+                            onBack = { currentScreen = previousScreen }   // ← Ini yang penting
                         )
                     }
                 }
@@ -328,6 +319,39 @@ fun AppNavigation() {
 data class CategoryItem(val title: String, val icon: Any)
 data class NewsItem(val title: String, val description: String, val date: String, val image: Int)
 val OrbitronFontFamily = FontFamily.SansSerif
+data class MaintenanceTask(
+    val jenis: String,
+    val namaDisplay: String,
+    val namaAsli: String,
+    val status: String,
+    val tanggal: String
+)
+
+fun getPendingTasks(
+    cal: Calendar,
+    masterArray: JSONArray,
+    doneMap: Map<String, Set<String>>
+): List<MaintenanceTask> {
+    val d = cal.get(Calendar.DAY_OF_MONTH)
+    val m = cal.get(Calendar.MONTH)
+    val y = cal.get(Calendar.YEAR)
+    val dateStr = String.format(Locale.US, "%02d/%02d/%d", d, m + 1, y)
+
+    val result = mutableListOf<MaintenanceTask>()
+
+    for (i in 0 until masterArray.length()) {
+        val obj = masterArray.getJSONObject(i)
+        val nama = if (obj.has("nama_mesin")) obj.getString("nama_mesin") else obj.optString("nama")
+        val jenis = obj.optString("jenis")
+
+        val status = getMaintenanceStatus(nama, d, m, y)
+
+        if ((status == "M" || status == "B") && doneMap[nama]?.contains(dateStr) != true) {
+            result.add(MaintenanceTask(jenis, nama, nama, status, dateStr))
+        }
+    }
+    return result
+}
 
 @Composable
 fun DashboardScreen(
@@ -394,8 +418,6 @@ fun NavItem(icon: Any, label: String, isSelected: Boolean, hasBadge: Boolean = f
     }
 }
 
-data class MaintenanceTask(val jenis: String, val namaDisplay: String, val namaAsli: String, val status: String, val tanggal: String)
-
 @Composable
 fun TopHeader(onNavigateToWebView: (String, String) -> Unit, onNavigateToIsiPerawatan: (String, String, String) -> Unit) {
     var notificationData by remember { mutableStateOf<List<MaintenanceTask>>(emptyList()) }
@@ -406,62 +428,59 @@ fun TopHeader(onNavigateToWebView: (String, String) -> Unit, onNavigateToIsiPera
         isLoading = true
         withContext(Dispatchers.IO) {
             try {
-                // Master Data Machine
+                // Master Data
                 val masterUrl = URL("https://script.google.com/macros/s/AKfycbwSnaaYVxXWVngeGQYU2im2G5FQ6L7WstjTkx7IW3jVYcuELECt0_cyvM0cFx4Uf8U/exec?action=getRawatMaster")
-                val masterResponse = masterUrl.openConnection().inputStream.bufferedReader().use { it.readText() }
-                val masterArray = JSONArray(masterResponse)
+                val masterText = masterUrl.openConnection().inputStream.bufferedReader().use { it.readText() }
+                val masterArray = JSONArray(masterText)
 
-                // Actual Records - Menggunakan ID script yang benar (AKfycbGXeV...)
-                val actualUrl = URL("https://script.google.com/macros/s/AKfycbxGXeVaZ640gmZGYqVYYZ7ZFPC4D9xSrp6wbal5U_sfx-8Sttf2Okz-ZN-Qgc7TuSU/exec?action=getPerawatan")
-                val actualResponse = actualUrl.openConnection().inputStream.bufferedReader().use { it.readText() }
-                val actualArray = JSONArray(actualResponse)
+                // Data yang sudah dilakukan
+                val actualUrl = URL("https://script.google.com/macros/s/AKfycbwQ7ocBNsl4x5-rGLrSyvkyluhSRl3B_LvmkA3cFuvuL9pBbVAOUI3i_Vu6jwfkfOA/exec?action=getPerawatan")
+                val actualText = actualUrl.openConnection().inputStream.bufferedReader().use { it.readText() }
+                val actualArray = JSONArray(actualText)
 
                 val doneMap = mutableMapOf<String, MutableSet<String>>()
                 for (i in 0 until actualArray.length()) {
                     val obj = actualArray.getJSONObject(i)
                     val name = obj.optString("nama_mesin")
                     val date = obj.optString("tanggal").trim()
-                    if (name.isNotEmpty() && date.isNotEmpty()) { doneMap.getOrPut(name) { mutableSetOf() }.add(date) }
+                    if (name.isNotEmpty() && date.isNotEmpty()) {
+                        doneMap.getOrPut(name) { mutableSetOf() }.add(date)
+                    }
                 }
 
                 val today = Calendar.getInstance()
-                fun getPendingTasks(cal: Calendar): List<MaintenanceTask> {
-                    val d = cal.get(Calendar.DAY_OF_MONTH); val m = cal.get(Calendar.MONTH); val y = cal.get(Calendar.YEAR)
-                    val dateStr = String.format(Locale.US, "%02d/%02d/%d", d, m + 1, y)
-                    val result = mutableListOf<MaintenanceTask>()
-                    for (i in 0 until masterArray.length()) {
-                        val obj = masterArray.getJSONObject(i)
-                        val nama = if (obj.has("nama_mesin")) obj.getString("nama_mesin") else obj.optString("nama")
-                        val jenis = obj.optString("jenis")
-                        val status = getMaintenanceStatus(nama, d, m, y)
-                        if ((status == "M" || status == "B") && doneMap[nama]?.contains(dateStr) != true) {
-                            result.add(MaintenanceTask(jenis, nama, nama, status, dateStr))
-                        }
-                    }
-                    return result
-                }
-
                 val list = mutableListOf<MaintenanceTask>()
-                list.addAll(getPendingTasks(today))
 
-                // Search back for 14 days
-                val backCal = today.clone() as Calendar
-                for (i in 1..14) {
-                    backCal.add(Calendar.DAY_OF_YEAR, -1)
-                    val pastTasks = getPendingTasks(backCal)
-                    if (pastTasks.isNotEmpty()) {
-                        val formattedDate = String.format(Locale.US, "%02d/%02d", backCal.get(Calendar.DAY_OF_MONTH), backCal.get(Calendar.MONTH) + 1)
-                        pastTasks.forEach { task ->
+                // 1. Prioritas Utama: Jadwal HARI INI
+                val todayTasks = getPendingTasks(today, masterArray, doneMap)
+                list.addAll(todayTasks)
+
+                // 2. Jika tidak ada jadwal hari ini → Ambil pending bulan ini
+                if (todayTasks.isEmpty()) {
+                    val currentMonth = today.get(Calendar.MONTH)
+                    val currentYear = today.get(Calendar.YEAR)
+
+                    val monthCal = today.clone() as Calendar
+                    for (day in 1..31) {
+                        monthCal.set(currentYear, currentMonth, day)
+                        if (monthCal.get(Calendar.MONTH) != currentMonth) break
+
+                        val monthTasks = getPendingTasks(monthCal, masterArray, doneMap)
+                        monthTasks.forEach { task ->
                             if (list.none { it.namaAsli == task.namaAsli }) {
-                                list.add(task.copy(namaDisplay = "${task.namaAsli} (Past Due $formattedDate)"))
+                                list.add(task)
                             }
                         }
                     }
-                    if (list.size >= 15) break
                 }
-                notificationData = list
-            } catch (e: Exception) { Log.e("TopHeader", "Fetch Notifications Error", e)
-            } finally { isLoading = false }
+
+                notificationData = list.take(15)
+
+            } catch (e: Exception) {
+                Log.e("TopHeader", "Error fetching tasks", e)
+            } finally {
+                isLoading = false
+            }
         }
     }
 
@@ -595,7 +614,22 @@ fun CategorySection(onPerawatanClick: () -> Unit, onKatalogClick: () -> Unit, on
     val items = remember { listOf(CategoryItem("Perawatan", R.drawable.perawatan), CategoryItem("Laporan Kerja", R.drawable.laporan), CategoryItem("KPI", R.drawable.kpi), CategoryItem("Listrik", Icons.Default.ElectricBolt), CategoryItem("Katalog", R.drawable.catalog), CategoryItem("Teknisi", R.drawable.teknisi), CategoryItem("Order", R.drawable.las), CategoryItem("Lainnya", Icons.Default.Apps)) }
     Column(modifier = Modifier.fillMaxWidth().background(Color.Transparent).padding(start = 24.dp, end = 24.dp, top = 0.dp, bottom = 20.dp)) {
         Text(text = "Kategori", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 20.dp), color = Color.White)
-        items.chunked(4).forEach { row -> Row(modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) { row.forEach { item -> CategoryCard(item = item, modifier = Modifier.weight(1f), onClick = { when (item.title) { "Perawatan" -> onPerawatanClick(); "Laporan Kerja" -> onLapKerjaClick(); "Katalog" -> onKatalogClick(); "KPI" -> onKPIClick(); "Listrik" -> onListrikClick(); "Order" -> onOrderClick() } }) } } }
+        items.chunked(4).forEach { row ->
+            Row(modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                row.forEach { item ->
+                    CategoryCard(item = item, modifier = Modifier.weight(1f), onClick = {
+                        when (item.title) {
+                            "Perawatan" -> onPerawatanClick()
+                            "Laporan Kerja" -> onLapKerjaClick()
+                            "Katalog" -> onKatalogClick()
+                            "KPI" -> onKPIClick()
+                            "Listrik" -> onListrikClick()
+                            "Order" -> onOrderClick()
+                        }
+                    })
+                }
+            }
+        }
     }
 }
 

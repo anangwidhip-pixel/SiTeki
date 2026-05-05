@@ -56,7 +56,8 @@ const val SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx4YbnLXFsnwDDV-
 fun CekListrikScreen(
     onBack: () -> Unit,
     onNavigateToDetail: () -> Unit,
-    editData: JSONObject? = null
+    editData: JSONObject? = null,
+    onEditFinished: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -169,7 +170,10 @@ fun CekListrikScreen(
                                     huheHCurrent = ""; huheHHCurrent = ""; huarHEHCurrent = ""; huarHHCurrent = ""
                                     gridPlnCurrent = ""; pvPltsCurrent = ""; toGridCurrent = ""
                                     petugasCurrent = "Pilih"; tanggalCurrent = getCurrentDate(); jamCurrent = getCurrentTime(); fetchData()
-                                } else onBack()
+                                } else {
+                                    onEditFinished()
+                                    onBack()
+                                }
                             }
                             isLoading = false
                         }

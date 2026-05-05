@@ -9,9 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBackIosNew
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,17 +24,18 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.sitekiver01.components.GlassCard
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.Calendar
-import java.util.Locale
+import java.util.*
+import androidx.compose.ui.text.style.TextAlign
 
-// --- DATA MODEL ---
 data class MasterRawat(
     val kategori: String,
     val jenis: String,
@@ -46,8 +45,15 @@ data class MasterRawat(
     val label: String
 )
 
-// --- VIEWMODEL ---
+data class FirebaseMesin(
+    val nama: String = "",
+    val kategori: String = "",
+    val jenis: String = ""      // Armada
+)
+
 class PerawatanViewModel : ViewModel() {
+    private val db = FirebaseFirestore.getInstance()
+
     var allData = mutableStateListOf<MasterRawat>()
     var categories = mutableStateListOf<String>()
     var filteredJenis = mutableStateListOf<String>()
@@ -56,11 +62,38 @@ class PerawatanViewModel : ViewModel() {
 
     var isLoading by mutableStateOf(false)
 
+    // ==================== FIREBASE LOOKUP (Cepat) ====================
+    fun fetchFromFirebase(namaMesin: String, onResult: (FirebaseMesin?) -> Unit) {
+        if (namaMesin.isBlank()) {
+            onResult(null)
+            return
+        }
 
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val snapshot = db.collection("master_mesin")
+                    .whereEqualTo("nama", namaMesin)
+                    .get()
+                    .await()
+
+                val mesin = if (snapshot.documents.isNotEmpty()) {
+                    snapshot.documents[0].toObject(FirebaseMesin::class.java)
+                } else null
+
+                withContext(Dispatchers.Main) {
+                    onResult(mesin)
+                }
+            } catch (e: Exception) {
+                Log.e("FirebaseLookup", "Error: ${e.message}")
+                withContext(Dispatchers.Main) { onResult(null) }
+            }
+        }
+    }
+
+    // ==================== APPS SCRIPT (Fungsi Lama) ====================
     fun fetchData(onComplete: () -> Unit = {}) {
         isLoading = true
-
-        viewModelScope.launch(Dispatchers.IO) {   // ← Ganti GlobalScope
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val url = URL("https://script.google.com/macros/s/AKfycbwSnaaYVxXWVngeGQYU2im2G5FQ6L7WstjTkx7IW3jVYcuELECt0_cyvM0cFx4Uf8U/exec?action=getRawatMaster")
                 val conn = url.openConnection() as HttpURLConnection
@@ -92,7 +125,7 @@ class PerawatanViewModel : ViewModel() {
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     isLoading = false
-                    Log.e("PerawatanVM", "Error fetch: ${e.message}")
+                    Log.e("PerawatanVM", "Error: ${e.message}")
                 }
             }
         }
@@ -111,11 +144,17 @@ class PerawatanViewModel : ViewModel() {
     fun loadDynamicItems(nama: String, waktu: String) {
         val w = if (waktu == "Mingguan") "M" else "B"
         dynamicItems.clear()
-        dynamicItems.addAll(allData.filter { it.nama.trim().equals(nama.trim(), ignoreCase = true) && it.waktu == w })
+        val result = allData.filter {
+            it.nama.trim().equals(nama.trim(), ignoreCase = true) && it.waktu == w
+        }
+        dynamicItems.addAll(result)
+
+        Log.d("DynamicItems", "Loaded ${result.size} items for $nama ($waktu)")
     }
 }
 
-// --- UI SCREEN ---
+// ==================== SCREEN ====================
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun IsiPerawatanScreen(
@@ -127,9 +166,8 @@ fun IsiPerawatanScreen(
     vm: PerawatanViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     var isSubmitting by remember { mutableStateOf(false) }
-    // Map status "M" -> "Mingguan" or "B" -> "Bulanan"
+
     val mappedWaktu = remember(initialWaktu) {
         when (initialWaktu) {
             "M" -> "Mingguan"
@@ -138,7 +176,6 @@ fun IsiPerawatanScreen(
         }
     }
 
-    // Form State
     var tanggal by remember { mutableStateOf(initialDate) }
     var selectedKategori by remember { mutableStateOf("") }
     var selectedJenis by remember { mutableStateOf("") }
@@ -147,41 +184,64 @@ fun IsiPerawatanScreen(
     var keterangan by remember { mutableStateOf("") }
     val isianMap = remember { mutableStateMapOf<String, String>() }
 
-    // Load Data and Auto-populate
-    LaunchedEffect(Unit) { 
-        vm.fetchData {
-            if (initialMachine.isNotEmpty()) {
-                val machineData = vm.allData.find { it.nama.trim().equals(initialMachine.trim(), ignoreCase = true) }
-                if (machineData != null) {
-                    selectedKategori = machineData.kategori
-                    vm.filterJenis(selectedKategori)
-                    selectedJenis = machineData.jenis
-                    vm.filterNama(selectedJenis)
-                    selectedNama = machineData.nama // use master data name
-                    
-                    if (selectedWaktu.isNotEmpty()) {
-                        vm.loadDynamicItems(selectedNama, selectedWaktu)
-                    }
+    // ==================== AUTO FILL DARI FIREBASE ====================
+    LaunchedEffect(initialMachine) {
+        if (initialMachine.isNotEmpty()) {
+            vm.fetchFromFirebase(initialMachine) { firebaseMesin ->
+                firebaseMesin?.let {
+                    selectedKategori = it.kategori
+                    selectedJenis = it.jenis
+                    selectedNama = it.nama
                 }
             }
-        } 
+        }
     }
 
+    LaunchedEffect(selectedNama, selectedWaktu) {
+        if (selectedNama.isNotEmpty() && selectedWaktu.isNotEmpty()) {
+            vm.loadDynamicItems(selectedNama, selectedWaktu)
+        }
+    }
+    // Load full master data (tetap diperlukan untuk dropdown & dynamic items)
+    LaunchedEffect(Unit) {
+        vm.fetchData {
+            // Setelah data master selesai load
+            if (initialMachine.isNotEmpty()) {
+                val machineData = vm.allData.find {
+                    it.nama.trim().equals(initialMachine.trim(), ignoreCase = true)
+                }
+                machineData?.let {
+                    selectedKategori = it.kategori
+                    vm.filterJenis(it.kategori)
+                    selectedJenis = it.jenis
+                    vm.filterNama(it.jenis)
+                    selectedNama = it.nama
+                }
+            }
+        }
+    }
+    if (vm.isLoading) {
+        Box(Modifier.fillMaxWidth().padding(32.dp), Alignment.Center) {
+            CircularProgressIndicator(color = Color.Cyan)
+        }
+    } else if (vm.dynamicItems.isNotEmpty()) {
+        // tampilan item dynamic seperti biasa
+    } else if (selectedNama.isNotEmpty() && selectedWaktu.isNotEmpty()) {
+        Text("Tidak ada item perawatan untuk mesin ini", color = Color.Gray)
+    }
     val calendar = Calendar.getInstance()
-    val datePickerDialog = DatePickerDialog(context, { _, y, m, d ->
-        tanggal = String.format(Locale.US, "%02d/%02d/%d", d, m + 1, y)
-    }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH))
+    val datePickerDialog = DatePickerDialog(
+        context,
+        { _, y, m, d -> tanggal = String.format(Locale.US, "%02d/%02d/%d", d, m + 1, y) },
+        calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)
+    )
 
     Scaffold(
         containerColor = Color(0xFF011619),
         topBar = {
             TopAppBar(
                 title = { Text("ISI PERAWATAN", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Back", tint = Color.White)
-                    }
-                },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBackIosNew, null, tint = Color.White) } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
@@ -193,43 +253,29 @@ fun IsiPerawatanScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // --- SECTION 1: TANGGAL & DATA ---
             GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("TANGGAL DAN DATA", color = Color(0xFF00E5FF), fontWeight = FontWeight.SemiBold)
 
-                    // Input Tanggal
-                    OutlinedButton(
-                        onClick = { datePickerDialog.show() },
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = Color.Cyan)
+                    OutlinedButton(onClick = { datePickerDialog.show() }, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                        Icon(Icons.Default.CalendarMonth, null, tint = Color.Cyan)
                         Spacer(Modifier.width(8.dp))
                         Text(if (tanggal.isEmpty()) "Pilih Tanggal" else tanggal, color = Color.White)
                     }
 
-                    // Dropdown Kategori
                     MyDropdown("Kategori", vm.categories, selectedKategori) {
-                        selectedKategori = it
-                        vm.filterJenis(it)
-                        selectedJenis = ""; selectedNama = ""
+                        selectedKategori = it; vm.filterJenis(it); selectedJenis = ""; selectedNama = ""
                     }
 
-                    // Dropdown Jenis
                     MyDropdown("Jenis", vm.filteredJenis, selectedJenis) {
-                        selectedJenis = it
-                        vm.filterNama(it)
-                        selectedNama = ""
+                        selectedJenis = it; vm.filterNama(it); selectedNama = ""
                     }
 
-                    // Dropdown Nama Mesin
                     MyDropdown("Nama Mesin", vm.filteredNama, selectedNama) {
                         selectedNama = it
                         if (selectedWaktu.isNotEmpty()) vm.loadDynamicItems(it, selectedWaktu)
                     }
 
-                    // Dropdown Waktu
                     MyDropdown("Waktu", listOf("Mingguan", "Bulanan"), selectedWaktu) {
                         selectedWaktu = it
                         if (selectedNama.isNotEmpty()) vm.loadDynamicItems(selectedNama, it)
@@ -237,9 +283,8 @@ fun IsiPerawatanScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
-            // --- SECTION 2: YANG DIRAWAT (DINAMIS) ---
             if (vm.dynamicItems.isNotEmpty()) {
                 GlassCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -266,7 +311,7 @@ fun IsiPerawatanScreen(
                         OutlinedTextField(
                             value = keterangan,
                             onValueChange = { keterangan = it },
-                            label = { Text("Keterangan", color = Color.Gray) },
+                            label = { Text("Keterangan") },
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = Color.White,
@@ -275,26 +320,49 @@ fun IsiPerawatanScreen(
                         )
                     }
                 }
+            } else if (selectedNama.isNotEmpty() && selectedWaktu.isNotEmpty() && !vm.isLoading) {
+                GlassCard(modifier = Modifier.fillMaxWidth()) {
+                    Box(
+                        modifier = Modifier.padding(32.dp).fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "Tidak ada item perawatan untuk mesin ini",
+                            color = Color.Gray,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
             }
 
             // --- SUBMIT BUTTON ---
             Button(
                 onClick = {
-                    if (tanggal.isEmpty() || selectedNama.isEmpty()) {
-                        Toast.makeText(context, "Data belum lengkap!", Toast.LENGTH_SHORT).show()
+                    if (tanggal.isEmpty() || selectedNama.isEmpty() || selectedKategori.isEmpty()) {
+                        Toast.makeText(context, "Mohon lengkapi Tanggal, Kategori, dan Nama Mesin!", Toast.LENGTH_LONG).show()
                         return@Button
                     }
 
-                    isSubmitting = true  // Pastikan ada state ini
+                    isSubmitting = true
 
                     submitData(
                         ctx = context,
                         onSuccess = {
-                            if (navController != null) {
-                                navController.popBackStack()
-                            } else {
-                                onBack()
-                            }
+                            // Reset Form
+                            tanggal = ""
+                            selectedKategori = ""
+                            selectedJenis = ""
+                            selectedNama = ""
+                            selectedWaktu = ""
+                            keterangan = ""
+                            isianMap.clear()
+
+                            // Kembali ke JadPerawatan
+                            onBack()           // ← Ini yang paling penting
+                            isSubmitting = false
+                        },
+                        onError = {
+                            isSubmitting = false
                         },
                         tgl = tanggal,
                         kat = selectedKategori,
@@ -305,24 +373,15 @@ fun IsiPerawatanScreen(
                         ket = keterangan
                     )
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 24.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00BCD4)),
                 shape = RoundedCornerShape(12.dp),
                 enabled = !isSubmitting
             ) {
                 if (isSubmitting) {
-                    CircularProgressIndicator(
-                        color = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                 } else {
-                    Text(
-                        "SUBMIT DATA",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
+                    Text("SUBMIT DATA", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }
         }
@@ -360,6 +419,7 @@ fun MyDropdown(label: String, items: List<String>, selected: String, onSelect: (
 fun submitData(
     ctx: android.content.Context,
     onSuccess: () -> Unit,
+    onError: (() -> Unit)? = null,
     tgl: String,
     kat: String,
     jen: String,
@@ -390,34 +450,26 @@ fun submitData(
             conn.requestMethod = "POST"
             conn.doOutput = true
             conn.setRequestProperty("Content-Type", "application/json")
-            conn.setRequestProperty("Accept", "application/json")
 
             conn.outputStream.use { os ->
                 os.write(jsonObject.toString().toByteArray(Charsets.UTF_8))
             }
 
             val responseCode = conn.responseCode
-            val responseBody = try {
-                conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-            } catch (e: Exception) {
-                conn.errorStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
-            }
 
             withContext(kotlinx.coroutines.Dispatchers.Main) {
                 if (responseCode in 200..299) {
-                    Toast.makeText(ctx, "✅ Data Berhasil Disimpan!", Toast.LENGTH_LONG).show()
-
-                    // KEMBALI KE HALAMAN SEBELUMNYA
                     onSuccess()
-
                 } else {
-                    Toast.makeText(ctx, "❌ Gagal: $responseBody", Toast.LENGTH_LONG).show()
+                    Toast.makeText(ctx, "❌ Gagal menyimpan data", Toast.LENGTH_LONG).show()
+                    onError?.invoke()
                 }
             }
 
         } catch (e: Exception) {
             withContext(kotlinx.coroutines.Dispatchers.Main) {
                 Toast.makeText(ctx, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                onError?.invoke()
             }
         }
     }
