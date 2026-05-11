@@ -14,6 +14,7 @@ lottie = "6.6.2"
 annotationExperimental = "1.4.1"
 guava = "33.4.0-android"
 navigation = "2.8.5"
+foundation = "1.11.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -38,6 +39,7 @@ lottie-compose = { group = "com.airbnb.android", name = "lottie-compose", versio
 androidx-annotation-experimental = { group = "androidx.annotation", name = "annotation-experimental", version.ref = "annotationExperimental" }
 guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation" }
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

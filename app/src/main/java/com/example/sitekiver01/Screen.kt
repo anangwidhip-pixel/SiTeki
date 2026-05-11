@@ -10,5 +10,6 @@ enum class Screen {
     DetailOrder,
     PenyelesaianOrder,
     BuatOrderKerja,
-    OrderKerjaList
+    OrderKerjaList,
+    Lainnya
 }

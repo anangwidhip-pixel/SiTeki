@@ -77,6 +77,7 @@ dependencies {
 
     // Force specific version of annotation-experimental to fix "defined multiple times" error
     implementation(libs.androidx.annotation.experimental)
+    implementation(libs.androidx.compose.foundation)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

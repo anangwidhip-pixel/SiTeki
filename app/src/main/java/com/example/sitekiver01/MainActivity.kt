@@ -34,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -313,7 +312,8 @@ fun AppNavigation() {
                             onNavigateToStokPart = { currentScreen = Screen.StokPart }, // <--- TAMBAHKAN INI
                             onNavigateToWebView = navigateToWebView,
                             onNavigateToOrderKerjaList = { currentScreen = Screen.OrderKerjaList }, // Navigasi kategori
-                            onNavigateToIsiPerawatan = onNavigateToIsiPerawatan
+                            onNavigateToIsiPerawatan = onNavigateToIsiPerawatan,
+                            onNavigateToLainnya = { currentScreen = Screen.Lainnya }
                         )
                     }
 
@@ -448,6 +448,17 @@ fun AppNavigation() {
                             onBack = { currentScreen = previousScreen }   // ← Ini yang penting
                         )
                     }
+                    Screen.Lainnya -> {
+                        LainnyaScreen(
+                            onBack = { currentScreen = Screen.Dashboard }
+                        )
+                    }
+
+                    // Safety net
+                    else -> {
+                        currentScreen = Screen.Dashboard
+                    }
+
                 }
             }
         }
@@ -504,7 +515,8 @@ fun DashboardScreen(
     onNavigateToOrderKerjaList: () -> Unit, // Tambahkan parameter ini
     onNavigateToStokPart: () -> Unit,
     onNavigateToWebView: (String, String) -> Unit,
-    onNavigateToIsiPerawatan: (String, String, String) -> Unit
+    onNavigateToIsiPerawatan: (String, String, String) -> Unit,
+    onNavigateToLainnya: () -> Unit
 ) {
     // 1. Inisialisasi wadah data
     val apiUrl = "https://script.google.com/macros/s/AKfycbyP84TUvoujsa0uuCYLR172Ft7EHzY_ofH_XkmJnYh1Y3qDICdSnlBBkGf9VU1WivQ/exec?action=getAllOrders"
@@ -569,7 +581,8 @@ fun DashboardScreen(
             onLapKerjaClick = onNavigateToLapKerja,
             onStokPartClick = onNavigateToStokPart,
             onOrderKerjaClick = onNavigateToOrderKerjaList, // Gunakan parameter navigasi list
-            onNavigateToWebView = onNavigateToWebView
+            onNavigateToWebView = onNavigateToWebView,
+            onNavigateToLainnya = onNavigateToLainnya
         )
 
         // Bagian Berita
@@ -1163,6 +1176,7 @@ fun CategorySection(
     onLapKerjaClick: () -> Unit,
     onStokPartClick: () -> Unit,           // <--- Tambahkan ini
     onOrderKerjaClick: () -> Unit,           // ← Harus ada
+    onNavigateToLainnya: () -> Unit,   // ← Tambahkan
     onNavigateToWebView: (String, String) -> Unit
 ) {
     val items = remember { listOf(
@@ -1197,6 +1211,7 @@ fun CategorySection(
                             "Katalog" -> onKatalogClick()
                             "Order Kerja" -> onOrderKerjaClick()
                             "Part" -> onStokPartClick() // <--- Ubah bagian ini
+                            "Lainnya" -> onNavigateToLainnya()   // ← TAMBAHKAN
                         }
                     })
                 }
