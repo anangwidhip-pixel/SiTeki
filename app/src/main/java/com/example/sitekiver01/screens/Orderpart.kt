@@ -1,30 +1,30 @@
 package com.example.sitekiver01.screens
 
-import android.app.DatePickerDialog
 import android.widget.Toast
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.example.sitekiver01.ui.theme.RajabesiDarkNavy
+import com.example.sitekiver01.OrbitronFontFamily
+import com.example.sitekiver01.components.*
+import com.example.sitekiver01.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -34,7 +34,7 @@ import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun OrderPartScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -86,42 +86,49 @@ fun OrderPartScreen(onBack: () -> Unit) {
     if (showConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
-            title = { Text("Konfirmasi Simpan") },
-            text = { Text("Apakah data yang Anda masukkan sudah benar?") },
+            containerColor = Color(0xFF1A1A1A),
+            title = { Text("Konfirmasi Simpan", color = Color.White) },
+            text = { Text("Apakah data yang Anda masukkan sudah benar?", color = GlassTextMuted) },
             confirmButton = {
-                Button(onClick = {
-                    showConfirmDialog = false
-                    isSubmitting = true
-                    scope.launch {
-                        val success = submitOrder(JSONObject().apply {
-                            put("action", "submitOrder")
-                            put("tglPesan", tglPesan)
-                            put("kategori", kategori)
-                            put("nama", namaPart)
-                            put("ukuran", ukuranPart)
-                            put("kegunaan", kegunaan)
-                            put("jmlPesan", jmlPesan)
-                            put("satuan", satuanLabel)
-                            put("bagian", bagian)
-                            put("pemesan", pemesan)
-                            put("mesin", mesinTerpilih)
-                            put("isNewData", !listStok.any { it[2] == namaPart })
-                            put("status", "Open") // Set Status to Open automatically
-                        }, scriptUrl)
-                        isSubmitting = false
-                        if (success) {
-                            Toast.makeText(context, "Data Tersimpan!", Toast.LENGTH_SHORT).show()
-                            onBack()
-                        } else {
-                            Toast.makeText(context, "Gagal menyimpan data!", Toast.LENGTH_SHORT).show()
+                Button(
+                    onClick = {
+                        showConfirmDialog = false
+                        isSubmitting = true
+                        scope.launch {
+                            val success = submitOrder(JSONObject().apply {
+                                put("action", "submitOrder")
+                                put("tglPesan", tglPesan)
+                                put("kategori", kategori)
+                                put("nama", namaPart)
+                                put("ukuran", ukuranPart)
+                                put("kegunaan", kegunaan)
+                                put("jmlPesan", jmlPesan)
+                                put("satuan", satuanLabel)
+                                put("bagian", bagian)
+                                put("pemesan", pemesan)
+                                put("mesin", mesinTerpilih)
+                                put("isNewData", !listStok.any { it[2] == namaPart })
+                                put("status", "Open")
+                            }, scriptUrl)
+                            isSubmitting = false
+                            if (success) {
+                                Toast.makeText(context, "Data Tersimpan!", Toast.LENGTH_SHORT).show()
+                                onBack()
+                            } else {
+                                Toast.makeText(context, "Gagal menyimpan data!", Toast.LENGTH_SHORT).show()
+                            }
                         }
-                    }
-                }) { Text("Ya") }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = GlassAccentCyan)
+                ) { Text("Ya", color = Color.Black) }
             },
-            dismissButton = { TextButton(onClick = { showConfirmDialog = false }) { Text("Tidak") } }
+            dismissButton = {
+                TextButton(onClick = { showConfirmDialog = false }) { Text("Tidak", color = GlassTextMuted) }
+            }
         )
     }
 
+    // Dialogs tetap sama
     if (showPartSelection) {
         PartSelectionDialog(
             listStok = listStok,
@@ -147,7 +154,6 @@ fun OrderPartScreen(onBack: () -> Unit) {
                 ukuranPart = u
                 satuanLabel = "-"
                 showAddNewPart = false
-                showPartSelection = false
             }
         )
     }
@@ -167,115 +173,166 @@ fun OrderPartScreen(onBack: () -> Unit) {
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("ORDER SPAREPART", color = Color.White, fontWeight = FontWeight.Bold) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBackIosNew, "", tint = Color.White) } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = RajabesiDarkNavy)
-            )
-        }
-    ) { p ->
-        if (isLoading) {
-            Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = RajabesiDarkNavy) }
-        } else {
-            Column(Modifier.padding(p).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+    Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
+        // Animated Background Orbs (sama persis)
+        val infiniteTransition = rememberInfiniteTransition(label = "orbs")
+        val orbOffset by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 100f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(8000, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ), label = "orbMove"
+        )
 
-                OrderLabel("Tanggal Pesan")
-                DatePickerField(tglPesan) { tglPesan = it }
+        Box(modifier = Modifier
+            .size(400.dp)
+            .offset(x = (-100).dp + orbOffset.dp, y = (-100).dp + (orbOffset/2).dp)
+            .background(GlassAccentPurple.copy(alpha = 0.15f), CircleShape)
+            .blur(100.dp))
 
-                OrderLabel("Sparepart (Kategori, Nama, Ukuran)")
-                OutlinedCard(
-                    onClick = { showPartSelection = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
-                ) {
+        Box(modifier = Modifier
+            .size(350.dp)
+            .align(Alignment.BottomEnd)
+            .offset(x = 100.dp - orbOffset.dp, y = 100.dp - (orbOffset/3).dp)
+            .background(GlassAccentCyan.copy(alpha = 0.12f), CircleShape)
+            .blur(80.dp))
+
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                Surface(color = Color.Transparent, modifier = Modifier.fillMaxWidth()) {
                     Row(
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier
+                            .windowInsetsPadding(WindowInsets.statusBars)
+                            .fillMaxWidth()
+                            .height(72.dp)
+                            .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            if (kategori.isEmpty() && namaPart.isEmpty()) {
-                                Text("Klik untuk memilih Kategori, Nama, & Ukuran...", color = Color.Gray, fontSize = 14.sp)
-                            } else {
-                                Text(kategori, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = RajabesiDarkNavy)
-                                Text("$namaPart - $ukuranPart", fontSize = 13.sp, color = Color.Gray)
-                            }
+                        IconButton(
+                            onClick = onBack,
+                            modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
                         }
-                        Icon(Icons.Default.Inventory2, null, tint = RajabesiDarkNavy)
+                        Spacer(Modifier.width(16.dp))
+                        Text(
+                            "ORDER SPAREPART",
+                            color = Color.White,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 18.sp,
+                            fontFamily = OrbitronFontFamily
+                        )
                     }
                 }
-
-                OrderLabel("Kegunaan")
-                OutlinedTextField(kegunaan, { kegunaan = it }, Modifier.fillMaxWidth(), placeholder = { Text("Part digunakan untuk...") })
-
-                OrderLabel("Jumlah Pesan")
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(jmlPesan, { jmlPesan = it }, Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                    Spacer(Modifier.width(8.dp))
-                    Text(satuanLabel, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+        ) { padding ->
+            if (isLoading) {
+                Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    CircularProgressIndicator(color = GlassAccentCyan)
                 }
-
-                OrderLabel("Bagian & Pemesan")
-                OutlinedCard(
-                    onClick = { showTeknisiDialog = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+            } else {
+                Column(
+                    modifier = Modifier
+                        .padding(padding)
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            if (bagian.isEmpty() && pemesan.isEmpty()) {
-                                Text("Klik untuk memilih Bagian & Pemesan...", color = Color.Gray, fontSize = 14.sp)
-                            } else {
-                                Text(bagian, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = RajabesiDarkNavy)
-                                Text(pemesan, fontSize = 13.sp, color = Color.Gray)
+                    Spacer(Modifier.height(20.dp))
+
+                    ModernSectionHeader("IDENTITAS PESANAN", Icons.Default.Info)
+                    ModernFormCard {
+                        Column {
+                            FormLabel("TANGGAL PESAN")
+                            ModernDatePickerField(tglPesan) { tglPesan = it }
+
+                            FormLabel("SPAREPART")
+                            ModernClickableField(
+                                value = if (kategori.isEmpty() && namaPart.isEmpty()) ""
+                                else "$kategori | $namaPart - $ukuranPart",
+                                placeholder = "Pilih Kategori, Nama, & Ukuran...",
+                                        color = Color.White.copy(alpha = 0.05f)
+                            ) { showPartSelection = true }
+                        }
+                    }
+
+                    Spacer(Modifier.height(24.dp))
+
+                    ModernSectionHeader("DETAIL PESANAN", Icons.Default.Inventory)
+                    ModernFormCard {
+                        Column {
+                            FormLabel("KEGUNAAN")
+                            ModernTextField(
+                                value = kegunaan,
+                                placeholder = "Part digunakan untuk...",
+                                minLines = 2
+                            ) { kegunaan = it }
+
+                            FormLabel("JUMLAH PESAN")
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(modifier = Modifier.weight(1f)) {
+                                    ModernTextField(
+                                        value = jmlPesan,
+                                        placeholder = "Jumlah...",
+                                        onValueChange = { jmlPesan = it }
+                                    )
+                                }
+                                Surface(
+                                    color = Color.White.copy(alpha = 0.1f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.dp, GlassBorder)
+                                ) {
+                                    Text(
+                                        text = satuanLabel,
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+                                }
                             }
                         }
-                        Icon(Icons.Default.Person, null, tint = RajabesiDarkNavy)
                     }
-                }
 
-                OrderLabel("Mesin")
-                OutlinedCard(
-                    onClick = { showMachineDialog = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            if (mesinTerpilih.isEmpty()) {
-                                Text("Klik untuk memilih Mesin...", color = Color.Gray, fontSize = 14.sp)
-                            } else {
-                                Text(mesinTerpilih, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = RajabesiDarkNavy)
-                            }
+                    Spacer(Modifier.height(24.dp))
+
+                    ModernSectionHeader("PENGGUNA & MESIN", Icons.Default.Person)
+                    ModernFormCard {
+                        Column {
+                            FormLabel("BAGIAN & PEMESAN")
+                            ModernClickableField(
+                                value = if (bagian.isEmpty() && pemesan.isEmpty()) ""
+                                else "$bagian | $pemesan",
+                                placeholder = "Pilih Bagian & Pemesan...",
+                                color = Color.White.copy(alpha = 0.05f)
+                            ) { showTeknisiDialog = true }
+
+                            FormLabel("MESIN")
+                            ModernClickableField(
+                                value = mesinTerpilih,
+                                placeholder = "Pilih Mesin...",
+                                color = Color.White.copy(alpha = 0.05f)
+                            ) { showMachineDialog = true }
                         }
-                        Icon(Icons.Default.PrecisionManufacturing, null, tint = RajabesiDarkNavy)
                     }
-                }
 
-                Spacer(Modifier.height(32.dp))
-                Button(
-                    onClick = { showConfirmDialog = true },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = RajabesiDarkNavy),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    if (isSubmitting) CircularProgressIndicator(color = Color.White)
-                    else Text("SUBMIT ORDER", fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(32.dp))
+
+                    ModernButton(
+                        text = "SUBMIT ORDER",
+                        isLoading = isSubmitting,
+                        icon = Icons.Default.Send,
+                        onClick = { showConfirmDialog = true },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(Modifier.height(50.dp))
                 }
-                Spacer(Modifier.height(50.dp))
             }
         }
     }
@@ -296,45 +353,47 @@ fun PartSelectionDialog(
     var selNama by remember { mutableStateOf("") }
 
     Dialog(onDismissRequest = onDismiss) {
-        Card(
+        Surface(
             Modifier.fillMaxWidth().height(550.dp),
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            color = Color(0xFF111111),
+            border = BorderStroke(1.dp, GlassBorder)
         ) {
             Column {
                 Box(
-                    modifier = Modifier.fillMaxWidth().background(RajabesiDarkNavy).padding(vertical = 16.dp),
+                    modifier = Modifier.fillMaxWidth().height(64.dp).background(Color.White.copy(alpha = 0.05f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         if (step == 1) "PILIH JENIS DAN NAMA" else "PILIH UKURAN",
                         color = Color.White,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 18.sp
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        fontFamily = OrbitronFontFamily
                     )
                 }
 
                 if (step == 1) {
                     Row(modifier = Modifier.weight(1f)) {
-                        LazyColumn(modifier = Modifier.weight(1f).fillMaxHeight().background(Color(0xFFF8FAFC))) {
+                        LazyColumn(modifier = Modifier.weight(1f).fillMaxHeight().background(Color(0xFF1A1A1A)).border(0.5.dp, GlassBorder)) {
                             items(categories) { kat ->
                                 val isSelected = selKat == kat
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable { selKat = kat }
-                                        .background(if (isSelected) Color.White else Color.Transparent)
-                                        .padding(16.dp),
+                                        .background(if (isSelected) GlassAccentCyan.copy(alpha = 0.15f) else Color.Transparent)
+                                        .padding(14.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         kat,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isSelected) RajabesiDarkNavy else Color.Gray,
+                                        color = if (isSelected) GlassAccentCyan else Color.White,
                                         fontSize = 13.sp
                                     )
-                                    Icon(Icons.Default.ChevronRight, null, tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.ChevronRight, null, tint = if (isSelected) GlassAccentCyan else GlassTextMuted, modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
@@ -342,7 +401,7 @@ fun PartSelectionDialog(
                         val names = remember(selKat, listStok) {
                             listStok.filter { it[1] == selKat }.map { it[2] }.distinct()
                         }
-                        LazyColumn(modifier = Modifier.weight(1.2f).fillMaxHeight()) {
+                        LazyColumn(modifier = Modifier.weight(1.2f).fillMaxHeight().background(Color(0xFF111111))) {
                             items(names) { name ->
                                 Text(
                                     name,
@@ -352,11 +411,11 @@ fun PartSelectionDialog(
                                             selNama = name
                                             step = 2
                                         }
-                                        .padding(16.dp),
+                                        .padding(14.dp),
                                     fontSize = 13.sp,
-                                    color = Color.DarkGray
+                                    color = Color.White
                                 )
-                                HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 0.5.dp)
+                                HorizontalDivider(color = GlassBorder.copy(alpha = 0.3f))
                             }
                         }
                     }
@@ -365,9 +424,9 @@ fun PartSelectionDialog(
                         listStok.filter { it[1] == selKat && it[2] == selNama }.map { it[3] }.distinct()
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { step = 1 }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = RajabesiDarkNavy) }
-                            Text("$selKat > $selNama", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Row(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { step = 1 }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = GlassAccentCyan) }
+                            Text("$selKat > $selNama", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
                         }
                         LazyColumn(modifier = Modifier.weight(1f)) {
                             items(sizes) { size ->
@@ -377,27 +436,24 @@ fun PartSelectionDialog(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable { onSelected(selKat, selNama, size, satuan) }
-                                        .padding(16.dp),
-                                    fontSize = 14.sp,
-                                    color = Color.DarkGray
+                                        .padding(14.dp),
+                                    fontSize = 13.sp,
+                                    color = Color.White
                                 )
-                                HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 0.5.dp)
+                                HorizontalDivider(color = GlassBorder.copy(alpha = 0.3f))
                             }
                         }
                     }
                 }
 
-                Box(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                     OutlinedButton(
                         onClick = onTidakAdaData,
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        shape = RoundedCornerShape(28.dp),
-                        border = BorderStroke(1.5.dp, RajabesiDarkNavy)
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        border = BorderStroke(1.dp, GlassAccentCyan)
                     ) {
-                        Text("TIDAK ADA DATA", color = RajabesiDarkNavy, fontWeight = FontWeight.ExtraBold)
+                        Text("TIDAK ADA DATA", color = GlassAccentCyan, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -423,79 +479,42 @@ fun AddNewPartDialog(
     }
 
     Dialog(onDismissRequest = onDismiss) {
-        Card(
+        Surface(
             Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            color = Color(0xFF1A1A1A),
+            border = BorderStroke(1.dp, GlassBorder)
         ) {
             Column(Modifier.padding(24.dp)) {
-                Text("TAMBAH DATA PART", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = RajabesiDarkNavy)
-                Spacer(Modifier.height(16.dp))
+                Text("TAMBAH DATA PART", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = Color.White, fontFamily = OrbitronFontFamily)
+                Spacer(Modifier.height(20.dp))
 
-                OrderLabel("Kategori")
-                DropdownField(kat, katOptions, "Pilih atau Ketik Kategori") { kat = it }
+                FormLabel("KATEGORI")
+                ModernDropdownField(kat, katOptions, "Pilih atau Ketik Kategori") { kat = it }
 
-                OrderLabel("Nama Part")
-                DropdownField(name, nameOptions, "Pilih atau Ketik Nama") { name = it }
+                FormLabel("NAMA PART")
+                ModernDropdownField(name, nameOptions, "Pilih atau Ketik Nama") { name = it }
 
-                OrderLabel("Ukuran")
-                OutlinedTextField(
+                FormLabel("UKURAN")
+                ModernTextField(
                     value = size,
                     onValueChange = { size = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Masukkan Ukuran") },
-                    shape = RoundedCornerShape(12.dp)
+                    placeholder = "Masukkan Ukuran"
                 )
 
                 Spacer(Modifier.height(32.dp))
-                Button(
+                ModernButton(
+                    text = "SIMPAN DATA",
                     onClick = {
                         if (kat.isNotBlank() && name.isNotBlank() && size.isNotBlank()) {
                             onSave(kat, name, size)
-                        } else {
-                            // Validation could be added here
                         }
                     },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = RajabesiDarkNavy),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("SIMPAN DATA", fontWeight = FontWeight.Bold)
+                    modifier = Modifier.fillMaxWidth()
+                )
+                TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                    Text("Batal", color = GlassTextMuted)
                 }
-            }
-        }
-    }
-}
-
-@Composable fun OrderLabel(text: String) {
-    Text(text, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
-}
-
-@Composable
-fun DropdownField(selected: String, options: List<String>, label: String, onSelected: (String) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    var textValue by remember(selected) { mutableStateOf(selected) }
-
-    Box(Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = textValue,
-            onValueChange = { textValue = it; onSelected(it) },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(label) },
-            shape = RoundedCornerShape(12.dp),
-            trailingIcon = { IconButton(onClick = { expanded = true }) { Icon(Icons.Default.ArrowDropDown, "") } }
-        )
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.fillMaxWidth(0.8f).background(Color.White)
-        ) {
-            options.forEach { opt ->
-                DropdownMenuItem(text = { Text(opt) }, onClick = {
-                    textValue = opt
-                    onSelected(opt)
-                    expanded = false
-                })
             }
         }
     }
@@ -508,14 +527,15 @@ fun MachineSelectionDialog(listMesin: List<List<String>>, onDismiss: () -> Unit,
     var selJen by remember { mutableStateOf("") }
 
     Dialog(onDismissRequest = onDismiss) {
-        Card(
+        Surface(
             Modifier.fillMaxWidth().height(550.dp),
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            color = Color(0xFF111111),
+            border = BorderStroke(1.dp, GlassBorder)
         ) {
             Column {
                 Box(
-                    modifier = Modifier.fillMaxWidth().background(RajabesiDarkNavy).padding(vertical = 16.dp),
+                    modifier = Modifier.fillMaxWidth().height(64.dp).background(Color.White.copy(alpha = 0.05f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -524,8 +544,9 @@ fun MachineSelectionDialog(listMesin: List<List<String>>, onDismiss: () -> Unit,
                             else -> "PILIH NAMA MESIN"
                         },
                         color = Color.White,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 18.sp
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        fontFamily = OrbitronFontFamily
                     )
                 }
 
@@ -536,24 +557,24 @@ fun MachineSelectionDialog(listMesin: List<List<String>>, onDismiss: () -> Unit,
                     if (selKat.isEmpty() && categories.isNotEmpty()) selKat = categories.first()
 
                     Row(modifier = Modifier.weight(1f)) {
-                        LazyColumn(modifier = Modifier.weight(1f).fillMaxHeight().background(Color(0xFFF8FAFC))) {
+                        LazyColumn(modifier = Modifier.weight(1f).fillMaxHeight().background(Color(0xFF1A1A1A)).border(0.5.dp, GlassBorder)) {
                             items(categories) { kat ->
                                 val isSelected = selKat == kat
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable { selKat = kat }
-                                        .background(if (isSelected) Color.White else Color.Transparent)
-                                        .padding(16.dp),
+                                        .background(if (isSelected) GlassAccentCyan.copy(alpha = 0.15f) else Color.Transparent)
+                                        .padding(14.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         kat,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isSelected) RajabesiDarkNavy else Color.Gray,
+                                        color = if (isSelected) GlassAccentCyan else Color.White,
                                         fontSize = 13.sp
                                     )
-                                    Icon(Icons.Default.ChevronRight, null, tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.ChevronRight, null, tint = if (isSelected) GlassAccentCyan else GlassTextMuted, modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
@@ -561,7 +582,7 @@ fun MachineSelectionDialog(listMesin: List<List<String>>, onDismiss: () -> Unit,
                         val types = remember(selKat, listMesin) {
                             listMesin.filter { it[0] == selKat }.map { it[1] }.distinct()
                         }
-                        LazyColumn(modifier = Modifier.weight(1.2f).fillMaxHeight()) {
+                        LazyColumn(modifier = Modifier.weight(1.2f).fillMaxHeight().background(Color(0xFF111111))) {
                             items(types) { type ->
                                 Text(
                                     type,
@@ -571,11 +592,11 @@ fun MachineSelectionDialog(listMesin: List<List<String>>, onDismiss: () -> Unit,
                                             selJen = type
                                             step = 2
                                         }
-                                        .padding(16.dp),
+                                        .padding(14.dp),
                                     fontSize = 13.sp,
-                                    color = Color.DarkGray
+                                    color = Color.White
                                 )
-                                HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 0.5.dp)
+                                HorizontalDivider(color = GlassBorder.copy(alpha = 0.3f))
                             }
                         }
                     }
@@ -584,9 +605,9 @@ fun MachineSelectionDialog(listMesin: List<List<String>>, onDismiss: () -> Unit,
                         listMesin.filter { it[1] == selJen }.map { it[2] }.distinct()
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { step = 1 }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = RajabesiDarkNavy) }
-                            Text("$selKat > $selJen", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Row(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { step = 1 }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = GlassAccentCyan) }
+                            Text("$selKat > $selJen", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
                         }
                         LazyColumn(modifier = Modifier.weight(1f)) {
                             items(names) { name ->
@@ -595,11 +616,11 @@ fun MachineSelectionDialog(listMesin: List<List<String>>, onDismiss: () -> Unit,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable { onSelected(name) }
-                                        .padding(16.dp),
-                                    fontSize = 14.sp,
-                                    color = Color.DarkGray
+                                        .padding(14.dp),
+                                    fontSize = 13.sp,
+                                    color = Color.White
                                 )
-                                HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 0.5.dp)
+                                HorizontalDivider(color = GlassBorder.copy(alpha = 0.3f))
                             }
                         }
                     }
@@ -621,44 +642,46 @@ fun TeknisiSelectionDialog(
     var selSection by remember { mutableStateOf(sections.firstOrNull() ?: "") }
 
     Dialog(onDismissRequest = onDismiss) {
-        Card(
+        Surface(
             Modifier.fillMaxWidth().height(550.dp),
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            color = Color(0xFF111111),
+            border = BorderStroke(1.dp, GlassBorder)
         ) {
             Column {
                 Box(
-                    modifier = Modifier.fillMaxWidth().background(RajabesiDarkNavy).padding(vertical = 16.dp),
+                    modifier = Modifier.fillMaxWidth().height(64.dp).background(Color.White.copy(alpha = 0.05f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         "PILIH BAGIAN & PEMESAN",
                         color = Color.White,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 18.sp
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        fontFamily = OrbitronFontFamily
                     )
                 }
 
                 Row(modifier = Modifier.weight(1f)) {
-                    LazyColumn(modifier = Modifier.weight(1f).fillMaxHeight().background(Color(0xFFF8FAFC))) {
+                    LazyColumn(modifier = Modifier.weight(1f).fillMaxHeight().background(Color(0xFF1A1A1A)).border(0.5.dp, GlassBorder)) {
                         items(sections) { section ->
                             val isSelected = selSection == section
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { selSection = section }
-                                    .background(if (isSelected) Color.White else Color.Transparent)
-                                    .padding(16.dp),
+                                    .background(if (isSelected) GlassAccentCyan.copy(alpha = 0.15f) else Color.Transparent)
+                                    .padding(14.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     section,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) RajabesiDarkNavy else Color.Gray,
+                                    color = if (isSelected) GlassAccentCyan else Color.White,
                                     fontSize = 13.sp
                                 )
-                                Icon(Icons.Default.ChevronRight, null, tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.ChevronRight, null, tint = if (isSelected) GlassAccentCyan else GlassTextMuted, modifier = Modifier.size(16.dp))
                             }
                         }
                     }
@@ -666,42 +689,24 @@ fun TeknisiSelectionDialog(
                     val names = remember(selSection, listTeknisi) {
                         listTeknisi.filter { it[3] == selSection }.map { it[0] }.distinct()
                     }
-                    LazyColumn(modifier = Modifier.weight(1.2f).fillMaxHeight()) {
+                    LazyColumn(modifier = Modifier.weight(1.2f).fillMaxHeight().background(Color(0xFF111111))) {
                         items(names) { name ->
                             Text(
                                 name,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { onSelected(selSection, name) }
-                                    .padding(16.dp),
+                                    .padding(14.dp),
                                 fontSize = 13.sp,
-                                color = Color.DarkGray
+                                color = Color.White
                             )
-                            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 0.5.dp)
+                            HorizontalDivider(color = GlassBorder.copy(alpha = 0.3f))
                         }
                     }
                 }
             }
         }
     }
-}
-
-@Composable
-fun DatePickerField(value: String, onValueChange: (String) -> Unit) {
-    val context = LocalContext.current
-    OutlinedTextField(
-        value = value,
-        onValueChange = {},
-        modifier = Modifier.fillMaxWidth().clickable {
-            val cal = Calendar.getInstance()
-            DatePickerDialog(context, { _, y, m, d ->
-                onValueChange(String.format("%02d/%02d/%04d", d, m + 1, y))
-            }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
-        },
-        readOnly = true,
-        shape = RoundedCornerShape(12.dp),
-        trailingIcon = { Icon(Icons.Default.CalendarMonth, "") }
-    )
 }
 
 fun parseJsonArray(json: org.json.JSONArray): List<List<String>> {

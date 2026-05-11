@@ -1,6 +1,7 @@
 package com.example.sitekiver01
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -11,6 +12,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -33,7 +35,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -52,7 +53,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.window.Dialog
-import androidx.navigation.compose.rememberNavController
 import com.example.sitekiver01.screens.*
 import com.example.sitekiver01.ui.theme.*
 import kotlinx.coroutines.Dispatchers
@@ -64,8 +64,35 @@ import java.net.URL
 import java.util.*
 import kotlin.math.absoluteValue
 import androidx.compose.ui.tooling.preview.Preview as ComposePreview
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+
+
+val TechCyan = Color(0xFF06B6D4)
+val GlassBase = Color(0xFF050B14)
+val GlassSurface = Color(0xFF1E293B).copy(alpha = 0.7f)
+val GlassBorder = Color(0xFF334155)
+val GlassTextMuted = Color(0xFF94A3B8)
+val GlassAccentPurple = Color(0xFF8B5CF6)
+val GlassAccentCyan = Color(0xFF06B6D4)
+val GlassAccentGreen = Color(0xFF10B981)
+
+data class ActualRecord(val nama_mesin: String, val tanggal: String)
+
+data class MaintenanceTask(
+    val jenis: String,
+    val namaDisplay: String,
+    val namaAsli: String,
+    val status: String,
+    val tanggal: String,
+    val isLate: Boolean = false
+)
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
@@ -78,12 +105,55 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // Deep Link dari QR Code akan ditangani di AppNavigation
+    }
 }
 
+suspend fun fetchOpenOrders(url: String): List<OrderItem> {
+    return withContext(Dispatchers.IO) {
+        val result = mutableListOf<OrderItem>()
+        try {
+            val response = URL(url).readText().trim()
+            Log.d("SiTekiData", "Response: $response")
+
+            // CEK: Jika respon bukan JSON Array (tidak diawali '['), maka berhenti
+            if (!response.startsWith("[")) {
+                Log.e("SiTekiData", "Format Salah: Respon bukan JSON Array")
+                return@withContext emptyList()
+            }
+
+            val jsonArray = JSONArray(response)
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                val status = obj.optString("status", "")
+
+                if (status.equals("Open", ignoreCase = true)) {
+                    result.add(OrderItem(
+                        rowIndex = obj.optInt("rowIndex", i + 2),
+                        tanggal = obj.optString("tanggal", ""),
+                        namaMesin = obj.optString("namaMesin", ""),
+                        kerusakan = obj.optString("kerusakan", ""),
+                        urgensi = obj.optString("urgensi", ""),
+                        status = status,
+                        bagianOrder = obj.optString("bagian_order", ""),
+                        namaOrder = obj.optString("nama_order", ""),
+                        bagianTujuan = obj.optString("bagian_tujuan", "")
+                    ))
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("SiTekiData", "Error Parsing: ${e.message}")
+        }
+        result
+    }
+}
 @Composable
 fun AppNavigation() {
     val context = LocalContext.current
-    val navController = rememberNavController()
+
     var currentScreen by remember { mutableStateOf(Screen.Dashboard) }
     var webUrl by remember { mutableStateOf("") }
     var webTitle by remember { mutableStateOf("") }
@@ -94,10 +164,46 @@ fun AppNavigation() {
 
     var editDataListrik by remember { mutableStateOf<JSONObject?>(null) }
 
-    // States for IsiPerawatanScreen navigation
+    // IsiPerawatan State
     var isiPerawatanMachine by remember { mutableStateOf("") }
     var isiPerawatanDate by remember { mutableStateOf("") }
     var isiPerawatanWaktu by remember { mutableStateOf("") }
+
+    // Order Kerja State
+    var currentOrderDetail by remember { mutableStateOf<OrderItem?>(null) }
+    var currentOrderRowIndex by remember { mutableIntStateOf(-1) }
+    var currentOrderMesin by remember { mutableStateOf("") }
+    var currentOrderMesinFromQR by remember { mutableStateOf("") }   // ← Deep Link QR Code
+    var openOrders by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    var isLoadingOrders by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val intent = (context as? ComponentActivity)?.intent
+        val data = intent?.data
+        val uriString = data?.toString() ?: ""
+
+        when {
+            // Deep Link (siteki://buatorder?...)
+            data?.scheme == "siteki" && data.host == "buatorder" -> {
+                val namaMesin = data.getQueryParameter("namaMesin") ?: ""
+                if (namaMesin.isNotEmpty()) {
+                    currentOrderMesinFromQR = namaMesin
+                    currentScreen = Screen.BuatOrderKerja
+                    Log.d("DeepLink", "Deep Link → $namaMesin")
+                }
+            }
+
+            // Web Link dari QR Code (script.google.com)
+            uriString.contains("script.google.com") -> {
+                val namaMesin = data?.getQueryParameter("mesin") ?: ""
+                if (namaMesin.isNotEmpty()) {
+                    currentOrderMesinFromQR = namaMesin
+                    currentScreen = Screen.BuatOrderKerja
+                    Log.d("WebLink", "Web Link → $namaMesin")
+                }
+            }
+        }
+    }
 
     val navigateToWebView: (String, String) -> Unit = { url, title ->
         webUrl = url
@@ -116,22 +222,10 @@ fun AppNavigation() {
 
     BackHandler {
         when (currentScreen) {
-            Screen.Dashboard -> { showExitDialog = true }
-            Screen.WebView -> { currentScreen = previousScreen }
-            Screen.DetailPerawatan, Screen.DetailDowntime -> { currentScreen = Screen.KPI }
-            Screen.Detaillistrik -> { currentScreen = Screen.Listrik }
-            Screen.Listrik -> {
-                if (editDataListrik != null) {
-                    editDataListrik = null
-                    currentScreen = Screen.Detaillistrik
-                } else {
-                    currentScreen = Screen.Dashboard
-                    selectedIndex = 0
-                }
-            }
-            Screen.IsiLaporan -> { currentScreen = Screen.LapKerja }
-            Screen.OrderPart, Screen.DaftarOrder -> { currentScreen = Screen.StokPart }
-            Screen.IsiPerawatan -> { currentScreen = previousScreen }
+            Screen.Dashboard -> showExitDialog = true
+            Screen.WebView -> currentScreen = previousScreen
+            Screen.DetailOrder, Screen.PenyelesaianOrder, Screen.BuatOrderKerja,
+            Screen.OrderKerjaList, Screen.IsiPerawatan -> currentScreen = previousScreen
             else -> {
                 currentScreen = Screen.Dashboard
                 selectedIndex = 0
@@ -186,13 +280,16 @@ fun AppNavigation() {
     val showBottomBar = currentScreen in listOf(Screen.Dashboard, Screen.QRScanner)
 
     Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
+        // Orbs Background
         val infiniteTransition = rememberInfiniteTransition(label = "orbs")
         val orbOffset by infiniteTransition.animateFloat(
             initialValue = 0f, targetValue = 100f,
-            animationSpec = infiniteRepeatable(animation = tween(8000, easing = LinearEasing), repeatMode = RepeatMode.Reverse), label = "orbMove"
+            animationSpec = infiniteRepeatable(animation = tween(8000, easing = LinearEasing), repeatMode = RepeatMode.Reverse)
         )
-        Box(modifier = Modifier.size(400.dp).offset(x = (-100).dp + orbOffset.dp, y = (-100).dp + (orbOffset/2).dp).background(GlassAccentPurple.copy(alpha = 0.15f), CircleShape).blur(100.dp))
-        Box(modifier = Modifier.size(350.dp).align(Alignment.BottomEnd).offset(x = 100.dp - orbOffset.dp, y = 100.dp - (orbOffset/3).dp).background(GlassAccentCyan.copy(alpha = 0.12f), CircleShape).blur(80.dp))
+        Box(modifier = Modifier.size(400.dp).offset(x = (-100).dp + orbOffset.dp, y = (-100).dp + (orbOffset/2).dp)
+            .background(GlassAccentPurple.copy(alpha = 0.15f), CircleShape).blur(100.dp))
+        Box(modifier = Modifier.size(350.dp).align(Alignment.BottomEnd).offset(x = 100.dp - orbOffset.dp, y = 100.dp - (orbOffset/3).dp)
+            .background(GlassAccentCyan.copy(alpha = 0.12f), CircleShape).blur(80.dp))
 
         Scaffold(
             containerColor = Color.Transparent,
@@ -204,19 +301,19 @@ fun AppNavigation() {
                             selectedIndex = index
                             when (index) {
                                 0 -> currentScreen = Screen.Dashboard
-                                1 -> { showPerawatanPopup = true }
+                                1 -> showPerawatanPopup = true
                                 2 -> currentScreen = Screen.QRScanner
                                 3 -> currentScreen = Screen.LapKerja
-                                4 -> { /* Akun - Not implemented */ }
+                                4 -> { /* Akun - bisa ditambah nanti */ }
                             }
-                        },
-                        onNavigateToWebView = navigateToWebView
+                        }
                     )
                 }
             }
         ) { innerPadding ->
             Box(modifier = Modifier.fillMaxSize()) {
                 val modifierWithPadding = Modifier.padding(bottom = if (showBottomBar) innerPadding.calculateBottomPadding() else 0.dp)
+
                 when (currentScreen) {
                     Screen.Dashboard -> {
                         DashboardScreen(
@@ -226,16 +323,74 @@ fun AppNavigation() {
                             onNavigateToKPI = { currentScreen = Screen.KPI },
                             onNavigateToListrik = { currentScreen = Screen.Listrik },
                             onNavigateToLapKerja = { currentScreen = Screen.LapKerja; selectedIndex = 3 },
-                            onNavigateToOrder = { currentScreen = Screen.StokPart },
+                            onOrderKerjaClick = { order ->
+                                currentOrderDetail = order        // Simpan data order yang diklik
+                                currentOrderRowIndex = order.rowIndex
+                                currentOrderMesin = order.namaMesin
+                                currentScreen = Screen.DetailOrder // Pindah ke halaman detail atau penyelesaian
+                            },   // ← Harus ada
+                            onNavigateToStokPart = { currentScreen = Screen.StokPart }, // <--- TAMBAHKAN INI
                             onNavigateToWebView = navigateToWebView,
+                            onNavigateToOrderKerjaList = { currentScreen = Screen.OrderKerjaList }, // Navigasi kategori
                             onNavigateToIsiPerawatan = onNavigateToIsiPerawatan
+                        )
+                    }
+
+                    Screen.OrderKerjaList -> {
+                        OrderKerjaListScreen(
+                            onBack = { currentScreen = Screen.Dashboard },
+                            onOrderClick = { order ->
+                                currentOrderDetail = order
+                                currentScreen = Screen.DetailOrder
+                            },
+                            onBuatOrderClick = { currentScreen = Screen.BuatOrderKerja }   // ← Tambahkan ini
+                        )
+                    }
+
+                    Screen.DetailOrder -> {
+                        currentOrderDetail?.let { order ->
+                            DetailOrderScreen(
+                                order = order,                    // OrderItem
+                                onBack = { currentScreen = Screen.Dashboard },
+                                onLakukanPerbaikan = { selectedOrder ->
+                                    currentOrderRowIndex = selectedOrder.rowIndex
+                                    currentOrderMesin = selectedOrder.namaMesin
+                                    currentScreen = Screen.PenyelesaianOrder
+                                }
+                            )
+                        } ?: run {
+                            currentScreen = Screen.Dashboard
+                        }
+                    }
+
+                    Screen.PenyelesaianOrder -> {
+                        PenyelesaianOrderScreen(
+                            orderRowIndex = currentOrderRowIndex,
+                            namaMesin = currentOrderMesin,
+                            onBack = { currentScreen = Screen.Dashboard },
+                            onSuccess = { currentScreen = Screen.Dashboard }
+                        )
+                    }
+
+                    Screen.BuatOrderKerja -> {
+                        BuatOrderKerjaScreen(
+                            machineNameFromQR = currentOrderMesinFromQR,
+                            onBack = {
+                                currentScreen = Screen.Dashboard
+                                currentOrderMesinFromQR = ""
+                            },
+                            onSuccess = {
+                                currentScreen = Screen.Dashboard
+                                currentOrderMesinFromQR = ""
+                            }
                         )
                     }
                     Screen.Perawatan -> {
                         PerawatanScreen(
                             modifier = modifierWithPadding.padding(top = innerPadding.calculateTopPadding()),
                             onBack = { currentScreen = Screen.Dashboard; selectedIndex = 0 },
-                            onNavigateToWebView = navigateToWebView
+                            onNavigateToWebView = navigateToWebView,
+                            onNavigateToDetail = { currentScreen = Screen.DetailPerawatan }   // ← Tambahkan ini
                         )
                     }
                     Screen.Katalog -> {
@@ -252,8 +407,10 @@ fun AppNavigation() {
                     }
                     Screen.QRScanner -> {
                         QRScannerScreen(
-                            onBack = { currentScreen = Screen.Dashboard; selectedIndex = 0 },
-                            onScanResult = { url -> navigateToWebView(url, "QR Result") }
+                            onBack = {
+                                currentScreen = Screen.Dashboard
+                                selectedIndex = 0
+                            }
                         )
                     }
                     Screen.KPI -> {
@@ -319,13 +476,8 @@ fun AppNavigation() {
 data class CategoryItem(val title: String, val icon: Any)
 data class NewsItem(val title: String, val description: String, val date: String, val image: Int)
 val OrbitronFontFamily = FontFamily.SansSerif
-data class MaintenanceTask(
-    val jenis: String,
-    val namaDisplay: String,
-    val namaAsli: String,
-    val status: String,
-    val tanggal: String
-)
+
+
 
 fun getPendingTasks(
     cal: Calendar,
@@ -361,42 +513,149 @@ fun DashboardScreen(
     onNavigateToKPI: () -> Unit,
     onNavigateToListrik: () -> Unit,
     onNavigateToLapKerja: () -> Unit,
-    onNavigateToOrder: () -> Unit,
+    onOrderKerjaClick: (OrderItem) -> Unit, // Mengirim data OrderItem saat diklik
+    onNavigateToOrderKerjaList: () -> Unit, // Tambahkan parameter ini
+    onNavigateToStokPart: () -> Unit,
     onNavigateToWebView: (String, String) -> Unit,
     onNavigateToIsiPerawatan: (String, String, String) -> Unit
 ) {
+    // 1. Inisialisasi wadah data
+    var openOrders by remember { mutableStateOf<List<OrderItem>>(emptyList()) }
+    var maintenanceTasks by remember { mutableStateOf<List<MaintenanceTask>>(emptyList()) }
+    val apiUrl = "https://script.google.com/macros/s/AKfycbyP84TUvoujsa0uuCYLR172Ft7EHzY_ofH_XkmJnYh1Y3qDICdSnlBBkGf9VU1WivQ/exec?action=getAllOrders"
+
+    // 2. Ambil data dari Google Sheets saat layar dibuka
+    LaunchedEffect(Unit) {
+        openOrders = fetchOpenOrders(apiUrl)
+        openOrders.forEach { println("DEBUG: Kerusakan=${it.kerusakan}, Mesin=${it.namaMesin}") }
+    }
+
     Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        TopHeader(onNavigateToWebView = onNavigateToWebView, onNavigateToIsiPerawatan = onNavigateToIsiPerawatan)
+        // Tampilan Header
+        TopHeader(
+            openOrders = openOrders,
+            onOrderKerjaClick = onOrderKerjaClick,
+            onNavigateToWebView = onNavigateToWebView,
+            onNavigateToIsiPerawatan = onNavigateToIsiPerawatan,
+            onTasksFetched = { fetchedTasks ->
+                maintenanceTasks = fetchedTasks} //
+        )
+        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+            Text(
+                text = "Order Kerja",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            MachineCard(
+                // Jika data masih ditarik, tulis "Mengecek...", jika sudah ada, tampilkan
+                orders = if (openOrders.isEmpty()) {
+                    listOf("Mengecek Order...")
+                } else {
+                    openOrders.mapIndexed { index, it ->
+                        // 1. Menggunakan index + 1 untuk nomor urut 1, 2, 3...
+                        // 2. Menggunakan \n untuk baris baru (Enter)
+                        // 3. Tambahkan teks manual jika it.namaMesin kosong untuk deteksi
+                        "Order ${index + 1}: ${it.kerusakan}\n${it.namaMesin.ifEmpty { "Data Kosong" }}"
+                    }
+                },
+                buttonText = "Lakukan Perbaikan",
+                onButtonClick = { index ->
+                    if (openOrders.isNotEmpty()) {
+                        onOrderKerjaClick(openOrders[index])
+                    }
+                }
+            )
+        }
+
+        // ---------------------------------------------------------
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Bagian Menu Kategori
         CategorySection(
             onPerawatanClick = onNavigateToPerawatan,
             onKatalogClick = onNavigateToKatalog,
             onKPIClick = onNavigateToKPI,
             onListrikClick = onNavigateToListrik,
             onLapKerjaClick = onNavigateToLapKerja,
-            onOrderClick = onNavigateToOrder,
+            onStokPartClick = onNavigateToStokPart,
+            onOrderKerjaClick = onNavigateToOrderKerjaList, // Gunakan parameter navigasi list
             onNavigateToWebView = onNavigateToWebView
         )
+
+        // Bagian Berita
         NewsSection()
+
         Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
 @Composable
-fun CustomBottomNavigation(modifier: Modifier = Modifier, selectedIndex: Int, onItemSelected: (Int) -> Unit, onNavigateToWebView: (String, String) -> Unit) {
-    Box(modifier = modifier.fillMaxWidth().padding(bottom = 20.dp, start = 24.dp, end = 24.dp).height(88.dp), contentAlignment = Alignment.BottomCenter) {
+fun CustomBottomNavigation(
+    modifier: Modifier = Modifier,
+    selectedIndex: Int,
+    onItemSelected: (Int) -> Unit
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(bottom = 20.dp, start = 24.dp, end = 24.dp)
+            .height(88.dp),
+        contentAlignment = Alignment.BottomCenter
+    ) {
         Box(modifier = Modifier.fillMaxWidth().height(68.dp)) {
-            Row(modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 0: Home
                 NavItem(Icons.Rounded.Dashboard, "Home", selectedIndex == 0) { onItemSelected(0) }
+
+                // 1: Maintenance (Perawatan)
                 NavItem(Icons.Rounded.SettingsSuggest, "Maint", selectedIndex == 1) { onItemSelected(1) }
+
+                // Spacer untuk FAB QR
                 Spacer(modifier = Modifier.width(60.dp))
+
+                // 3: Laporan Kerja
                 NavItem(Icons.AutoMirrored.Rounded.Assignment, "Lap", selectedIndex == 3) { onItemSelected(3) }
+
+                // 4: Akun
                 NavItem(Icons.Rounded.ManageAccounts, "Akun", selectedIndex == 4) { onItemSelected(4) }
             }
         }
-        Box(modifier = Modifier.align(Alignment.TopCenter).offset(y = (-8).dp).size(72.dp), contentAlignment = Alignment.Center) {
+
+        // Floating QR Button
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = (-8).dp)
+                .size(72.dp),
+            contentAlignment = Alignment.Center
+        ) {
             Box(modifier = Modifier.size(60.dp).background(GlassAccentCyan.copy(alpha = 0.3f), CircleShape).blur(15.dp))
-            Box(modifier = Modifier.fillMaxSize().background(brush = Brush.linearGradient(colors = listOf(GlassAccentCyan, Color(0xFF00B8D4), Color(0xFF0097A7)), start = Offset.Zero, end = Offset.Infinite), shape = CircleShape).clickable { onItemSelected(2) }, contentAlignment = Alignment.Center) {
-                Icon(imageVector = Icons.Rounded.QrCodeScanner, contentDescription = "QR Scanner", tint = Color.Black, modifier = Modifier.size(34.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(GlassAccentCyan, Color(0xFF00B8D4), Color(0xFF0097A7))
+                        ),
+                        shape = CircleShape
+                    )
+                    .clickable { onItemSelected(2) },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.QrCodeScanner,
+                    contentDescription = "QR Scanner",
+                    tint = Color.Black,
+                    modifier = Modifier.size(34.dp)
+                )
             }
         }
     }
@@ -419,7 +678,13 @@ fun NavItem(icon: Any, label: String, isSelected: Boolean, hasBadge: Boolean = f
 }
 
 @Composable
-fun TopHeader(onNavigateToWebView: (String, String) -> Unit, onNavigateToIsiPerawatan: (String, String, String) -> Unit) {
+fun TopHeader(
+    onNavigateToWebView: (String, String) -> Unit,
+    onNavigateToIsiPerawatan: (String, String, String) -> Unit,
+    openOrders: List<OrderItem>,
+    onOrderKerjaClick: (OrderItem) -> Unit,
+    onTasksFetched: (List<MaintenanceTask>) -> Unit // <--- Pastikan parameter ini ADA
+) {
     var notificationData by remember { mutableStateOf<List<MaintenanceTask>>(emptyList()) }
     var showNotificationDialog by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
@@ -429,13 +694,18 @@ fun TopHeader(onNavigateToWebView: (String, String) -> Unit, onNavigateToIsiPera
         withContext(Dispatchers.IO) {
             try {
                 // Master Data
-                val masterUrl = URL("https://script.google.com/macros/s/AKfycbwSnaaYVxXWVngeGQYU2im2G5FQ6L7WstjTkx7IW3jVYcuELECt0_cyvM0cFx4Uf8U/exec?action=getRawatMaster")
-                val masterText = masterUrl.openConnection().inputStream.bufferedReader().use { it.readText() }
+                val masterUrl =
+                    URL("https://script.google.com/macros/s/AKfycbwSnaaYVxXWVngeGQYU2im2G5FQ6L7WstjTkx7IW3jVYcuELECt0_cyvM0cFx4Uf8U/exec?action=getRawatMaster")
+
+                val masterText =
+                    masterUrl.openConnection().inputStream.bufferedReader().use { it.readText() }
                 val masterArray = JSONArray(masterText)
 
                 // Data yang sudah dilakukan
-                val actualUrl = URL("https://script.google.com/macros/s/AKfycbwQ7ocBNsl4x5-rGLrSyvkyluhSRl3B_LvmkA3cFuvuL9pBbVAOUI3i_Vu6jwfkfOA/exec?action=getPerawatan")
-                val actualText = actualUrl.openConnection().inputStream.bufferedReader().use { it.readText() }
+                val actualUrl =
+                    URL("https://script.google.com/macros/s/AKfycbwQ7ocBNsl4x5-rGLrSyvkyluhSRl3B_LvmkA3cFuvuL9pBbVAOUI3i_Vu6jwfkfOA/exec?action=getPerawatan")
+                val actualText =
+                    actualUrl.openConnection().inputStream.bufferedReader().use { it.readText() }
                 val actualArray = JSONArray(actualText)
 
                 val doneMap = mutableMapOf<String, MutableSet<String>>()
@@ -449,90 +719,246 @@ fun TopHeader(onNavigateToWebView: (String, String) -> Unit, onNavigateToIsiPera
                 }
 
                 val today = Calendar.getInstance()
-                val list = mutableListOf<MaintenanceTask>()
+                val finalList = mutableListOf<MaintenanceTask>()
 
-                // 1. Prioritas Utama: Jadwal HARI INI
-                val todayTasks = getPendingTasks(today, masterArray, doneMap)
-                list.addAll(todayTasks)
+                // 1. Cek Hari Ini
+                finalList.addAll(getPendingTasks(today, masterArray, doneMap))
 
-                // 2. Jika tidak ada jadwal hari ini → Ambil pending bulan ini
-                if (todayTasks.isEmpty()) {
-                    val currentMonth = today.get(Calendar.MONTH)
-                    val currentYear = today.get(Calendar.YEAR)
+                // 2. Cek Backlog (Mundur dari hari kemarin ke tanggal 1)
+                val currentDay = today.get(Calendar.DAY_OF_MONTH)
+                for (day in (currentDay - 1) downTo 1) {
+                    val checkCal = today.clone() as Calendar
+                    checkCal.set(Calendar.DAY_OF_MONTH, day)
 
-                    val monthCal = today.clone() as Calendar
-                    for (day in 1..31) {
-                        monthCal.set(currentYear, currentMonth, day)
-                        if (monthCal.get(Calendar.MONTH) != currentMonth) break
-
-                        val monthTasks = getPendingTasks(monthCal, masterArray, doneMap)
-                        monthTasks.forEach { task ->
-                            if (list.none { it.namaAsli == task.namaAsli }) {
-                                list.add(task)
-                            }
+                    val backlog = getPendingTasks(checkCal, masterArray, doneMap)
+                    backlog.forEach { task ->
+                        // Filter Unik agar tidak duplikat 15 nama sama
+                        if (finalList.none { it.namaAsli == task.namaAsli }) {
+                            finalList.add(task.copy(namaDisplay = "[LATE] ${task.namaAsli}", isLate = true))
                         }
                     }
+                    if (finalList.size >= 15) break // Berhenti jika sudah cukup 15 agar tidak lemot
                 }
 
-                notificationData = list.take(15)
+                val result = finalList.take(15)
+                withContext(Dispatchers.Main) {
+                    notificationData = result
+                    onTasksFetched(result)
+                    isLoading = false
+                }
 
             } catch (e: Exception) {
-                Log.e("TopHeader", "Error fetching tasks", e)
-            } finally {
-                isLoading = false
+                Log.e("TopHeader", "Error load data", e)
+                withContext(Dispatchers.Main) { isLoading = false }
             }
         }
     }
 
     if (showNotificationDialog) {
         Dialog(onDismissRequest = { showNotificationDialog = false }) {
-            Surface(shape = RoundedCornerShape(24.dp), color = Color(0xFF1A1A1A), modifier = Modifier.fillMaxWidth().padding(16.dp), border = BorderStroke(1.dp, GlassBorder)) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = Color(0xFF1A1A1A),
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                border = BorderStroke(1.dp, GlassBorder)
+            ) {
                 Column(modifier = Modifier.padding(24.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(40.dp).background(GlassAccentPurple.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) { Icon(Icons.Default.NotificationsActive, null, tint = GlassAccentPurple, modifier = Modifier.size(20.dp)) }
-                        Spacer(Modifier.width(12.dp)); Text("Jadwal Perawatan", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = Color.White)
+                        Box(
+                            modifier = Modifier.size(40.dp)
+                                .background(GlassAccentPurple.copy(alpha = 0.1f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.NotificationsActive,
+                                null,
+                                tint = GlassAccentPurple,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp)); Text(
+                        "Jadwal Perawatan",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 20.sp,
+                        color = Color.White
+                    )
                     }
                     Spacer(Modifier.height(20.dp))
-                    if (isLoading) { Box(Modifier.fillMaxWidth().height(150.dp), Alignment.Center) { CircularProgressIndicator(color = GlassAccentCyan) }
+                    if (isLoading) {
+                        Box(
+                            Modifier.fillMaxWidth().height(150.dp),
+                            Alignment.Center
+                        ) { CircularProgressIndicator(color = GlassAccentCyan) }
                     } else if (notificationData.isEmpty()) {
-                        Column(Modifier.fillMaxWidth().padding(vertical = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Default.DoneAll, null, tint = GlassAccentGreen, modifier = Modifier.size(48.dp)); Spacer(Modifier.height(12.dp)); Text("Semua Beres!", fontWeight = FontWeight.Bold, color = Color.White) }
+                        Column(
+                            Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                Icons.Default.DoneAll,
+                                null,
+                                tint = GlassAccentGreen,
+                                modifier = Modifier.size(48.dp)
+                            ); Spacer(Modifier.height(12.dp)); Text(
+                            "Semua Beres!",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        }
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             notificationData.take(5).forEach { task ->
-                                Surface(onClick = { showNotificationDialog = false; onNavigateToIsiPerawatan(task.namaAsli, task.tanggal, task.status) }, color = Color.White.copy(alpha = 0.05f), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, GlassBorder), modifier = Modifier.fillMaxWidth()) {
-                                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Box(modifier = Modifier.size(36.dp).background(Color.White.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) { Icon(Icons.Default.Build, null, tint = GlassAccentCyan, modifier = Modifier.size(18.dp)) }
+                                Surface(
+                                    onClick = {
+                                        showNotificationDialog = false; onNavigateToIsiPerawatan(
+                                        task.namaAsli,
+                                        task.tanggal,
+                                        task.status
+                                    )
+                                    },
+                                    color = Color.White.copy(alpha = 0.05f),
+                                    shape = RoundedCornerShape(16.dp),
+                                    border = BorderStroke(1.dp, GlassBorder),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.size(36.dp).background(
+                                                Color.White.copy(alpha = 0.1f),
+                                                CircleShape
+                                            ), contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Build,
+                                                null,
+                                                tint = GlassAccentCyan,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
                                         Spacer(Modifier.width(12.dp))
-                                        Column(Modifier.weight(1f)) { Text(task.namaDisplay, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis); Text(task.jenis, fontSize = 11.sp, color = GlassTextMuted) }
-                                        Icon(Icons.AutoMirrored.Filled.OpenInNew, null, tint = Color.White.copy(alpha = 0.3f), modifier = Modifier.size(16.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text(
+                                                task.namaDisplay,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                color = Color.White,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            ); Text(
+                                            task.jenis,
+                                            fontSize = 11.sp,
+                                            color = GlassTextMuted
+                                        )
+                                        }
+                                        Icon(
+                                            Icons.AutoMirrored.Filled.OpenInNew,
+                                            null,
+                                            tint = Color.White.copy(alpha = 0.3f),
+                                            modifier = Modifier.size(16.dp)
+                                        )
                                     }
                                 }
                             }
                         }
                     }
                     Spacer(Modifier.height(24.dp))
-                    Button(onClick = { showNotificationDialog = false }, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = GlassAccentCyan)) { Text("MENGERTI", fontWeight = FontWeight.Bold, color = Color.Black) }
+                    Button(
+                        onClick = { showNotificationDialog = false },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = GlassAccentCyan)
+                    ) { Text("MENGERTI", fontWeight = FontWeight.Bold, color = Color.Black) }
                 }
             }
         }
     }
 
     Box(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).padding(bottom = 24.dp)) {
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "SISTEM INFORMASI TEKNIK", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, fontFamily = OrbitronFontFamily)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(bottom = 24.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // [REVISI: Header Style]
+                Column {
+                    Text(
+                        text = "SISTEM INFORMASI",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.sp
+                    )
+                    Text(
+                        text = "TEKNIK RAJA BESI",
+                        color = TechCyan, // Menggunakan warna Cyan dari tema Sci-Fi
+                        fontWeight = FontWeight.Black,
+                        fontSize = 20.sp,
+                        fontFamily = OrbitronFontFamily
+                    )
+                }
+
                 Spacer(Modifier.weight(1f))
                 Box {
-                    IconButton(onClick = { showNotificationDialog = true }, modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)) { Icon(Icons.Default.Notifications, null, tint = Color.White, modifier = Modifier.size(24.dp)) }
-                    if (notificationData.isNotEmpty()) { Box(modifier = Modifier.size(10.dp).background(Color.Red, CircleShape).align(Alignment.TopEnd).offset(x = (-2).dp, y = 2.dp)) }
+                    IconButton(
+                        onClick = { showNotificationDialog = true },
+                        modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)
+                    ) {
+                        // [REVISI: Icon Tint berubah kuning jika ada backlog]
+                        val hasLate = notificationData.any { it.namaDisplay.contains("[LATE]") }
+                        Icon(
+                            Icons.Default.Notifications,
+                            null,
+                            tint = if (hasLate) Color.Yellow else Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    if (notificationData.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .background(Color.Red, CircleShape)
+                                .border(1.5.dp, Color(0xFF1A1A1A), CircleShape)
+                                .align(Alignment.TopEnd)
+                                .offset(x = (-2).dp, y = 2.dp)
+                        )
+                    }
                 }
             }
+
             Spacer(Modifier.height(8.dp)); CarouselBanner(); Spacer(Modifier.height(12.dp))
             Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                Text(text = "Order Kerja", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp); Spacer(modifier = Modifier.height(16.dp))
-                MachineCard(orders = listOf("Order 1: Mesin CNC-01 Rusak", "Order 2: Perawatan Rutin Pompa B", "Order 3: Ganti Filter Kompresor", "Order 4: Kalibrasi Sensor Oven 05"), buttonText = "Lakukan Perbaikan")
-                Spacer(modifier = Modifier.height(24.dp)); Text(text = "Order Perawatan", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp); Spacer(modifier = Modifier.height(16.dp))
-                MaintenanceTable(data = notificationData, onActionClick = { task -> onNavigateToIsiPerawatan(task.namaAsli, task.tanggal, task.status) })
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Judul dengan indikator warna Cyan
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(4.dp, 24.dp).background(TechCyan))
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = "Order Perawatan",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 22.sp,
+                        fontFamily = OrbitronFontFamily
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                MachineCard(
+                    tasks = maintenanceTasks, // Data ini sudah di-load oleh TopHeader secara paralel
+                    buttonText = "Lakukan Perawatan",
+                    onActionClick = { task ->
+                        onNavigateToIsiPerawatan(task.namaAsli, task.tanggal, task.status)
+                    }
+                )
             }
         }
     }
@@ -580,17 +1006,48 @@ fun MaintenanceTable(data: List<MaintenanceTask>, onActionClick: (MaintenanceTas
 }
 
 @Composable
-fun MachineCard(orders: List<String>, buttonText: String, onButtonClick: (Int) -> Unit = {}) {
+fun MachineCard(
+    tasks: List<MaintenanceTask> = emptyList(), // Pastikan parameter ini ada
+    orders: List<String> = emptyList(),
+    buttonText: String,
+    onButtonClick: (Int) -> Unit = {},
+    onActionClick: (MaintenanceTask) -> Unit = {}
+) {
+
+    val displayList = remember(tasks, orders) {
+        if (tasks.isNotEmpty()) tasks.map { it.namaDisplay }
+        else if (orders.isNotEmpty()) orders
+        else listOf("Tidak ada data...")
+    }
     val pagerState = rememberPagerState(pageCount = { orders.size })
     val isPreview = LocalInspectionMode.current
-    LaunchedEffect(Unit) { if (!isPreview) { while (true) { delay(5000); pagerState.animateScrollToPage((pagerState.currentPage + 1) % orders.size, animationSpec = tween(1000)) } } }
+    LaunchedEffect(orders) {
+        if (!isPreview && orders.size > 1) {
+            while (true) {
+                delay(5000)
+                pagerState.animateScrollToPage(
+                    (pagerState.currentPage + 1) % orders.size,
+                    animationSpec = tween(1000)
+                )
+            }
+        }
+    }
     val density = LocalDensity.current
-    val btnW = 158.dp; val btnH = 29.dp; val cardR = 32.dp
-    val btnWidthPx = with(density) { btnW.toPx() }; val btnHeightPx = with(density) { btnH.toPx() }; val cardRadiusPx = with(density) { cardR.toPx() }; val gapPx = with(density) { 8.dp.toPx() }; val br = btnHeightPx / 2
+    val btnW = 158.dp;
+    val btnH = 29.dp;
+    val cardR = 32.dp
+    val btnWidthPx = with(density) { btnW.toPx() };
+    val btnHeightPx = with(density) { btnH.toPx() };
+    val cardRadiusPx = with(density) { cardR.toPx() };
+    val gapPx = with(density) { 8.dp.toPx() };
+    val br = btnHeightPx / 2
     Box(modifier = Modifier.fillMaxWidth().height(160.dp)) {
         val notchedShape = GenericShape { size, _ ->
             if (size.width > 0 && size.height > 0) {
-                val w = size.width; val h = size.height; val r = cardRadiusPx; val notchTop = h - btnHeightPx - gapPx; val notchLeft = w - btnWidthPx - gapPx
+                val w = size.width; val h = size.height;
+                val r = cardRadiusPx;
+                val notchTop = h - btnHeightPx - gapPx;
+                val notchLeft = w - btnWidthPx - gapPx
                 moveTo(r, 0f); lineTo(w - r, 0f); arcTo(Rect(w - 2 * r, 0f, w, 2 * r), 270f, 90f, false); lineTo(w, notchTop - br); arcTo(Rect(w - 2 * br, notchTop - 2 * br, w, notchTop), 0f, 90f, false); lineTo(notchLeft + br, notchTop); arcTo(Rect(notchLeft, notchTop, notchLeft + 2 * br, notchTop + 2 * br), 270f, -90f, false); lineTo(notchLeft, h - br); arcTo(Rect(notchLeft - 2 * br, h - 2 * br, notchLeft, h), 0f, 90f, false); lineTo(r, h); arcTo(Rect(0f, h - 2 * r, 2 * r, h), 90f, 90f, false); lineTo(0f, r); arcTo(Rect(0f, 0f, 2 * r, 2 * r), 180f, 90f, false); close()
             }
         }
@@ -599,32 +1056,84 @@ fun MachineCard(orders: List<String>, buttonText: String, onButtonClick: (Int) -
                 Icon(painter = painterResource(id = R.drawable.mesin), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(86.dp))
                 Spacer(modifier = Modifier.width(20.dp)); Box(modifier = Modifier.width(1.5.dp).height(64.dp).background(Color.White.copy(alpha = 0.2f))); Spacer(modifier = Modifier.width(20.dp))
                 HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { page ->
-                    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) { Text(text = orders[page], fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
+                        // REVISI: Tambahkan logika warna Kuning jika mengandung kata [LATE]
+                        val isLate = orders[page].contains("[LATE]")
+                        Text(
+                            text = orders[page],
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = if (isLate) Color.Yellow else Color.White, // <--- GANTI INI
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }
-        Button(onClick = { onButtonClick(pagerState.currentPage) }, modifier = Modifier.align(Alignment.BottomEnd).width(btnW).height(btnH), shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent), contentPadding = PaddingValues(0.dp)) {
-            Box(modifier = Modifier.fillMaxSize().background(brush = Brush.horizontalGradient(colors = listOf(GlassAccentCyan, Color(0xFF0054B2))), shape = CircleShape), contentAlignment = Alignment.Center) { Text(text = buttonText, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 10.sp) }
+        Button(
+            onClick = {
+                // TAMBAHKAN: Cek index agar tidak crash
+                if (tasks.isNotEmpty()) {
+                    val currentTask = tasks[pagerState.currentPage % tasks.size]
+                    onActionClick(currentTask)
+                }
+            },
+            modifier = Modifier.align(Alignment.BottomEnd).width(btnW).height(btnH),
+            shape = CircleShape,
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+            contentPadding = PaddingValues(0.dp)
+        ) {
+            Box(modifier = Modifier.fillMaxSize().background(brush = Brush.horizontalGradient(colors = listOf(GlassAccentCyan, Color(0xFF0054B2))), shape = CircleShape), contentAlignment = Alignment.Center) {
+                Text(text = buttonText, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+            }
         }
     }
 }
 
 @Composable
-fun CategorySection(onPerawatanClick: () -> Unit, onKatalogClick: () -> Unit, onKPIClick: () -> Unit, onListrikClick: () -> Unit, onLapKerjaClick: () -> Unit, onOrderClick: () -> Unit, onNavigateToWebView: (String, String) -> Unit) {
-    val items = remember { listOf(CategoryItem("Perawatan", R.drawable.perawatan), CategoryItem("Laporan Kerja", R.drawable.laporan), CategoryItem("KPI", R.drawable.kpi), CategoryItem("Listrik", Icons.Default.ElectricBolt), CategoryItem("Katalog", R.drawable.catalog), CategoryItem("Teknisi", R.drawable.teknisi), CategoryItem("Order", R.drawable.las), CategoryItem("Lainnya", Icons.Default.Apps)) }
-    Column(modifier = Modifier.fillMaxWidth().background(Color.Transparent).padding(start = 24.dp, end = 24.dp, top = 0.dp, bottom = 20.dp)) {
-        Text(text = "Kategori", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 20.dp), color = Color.White)
+fun CategorySection(
+    onPerawatanClick: () -> Unit,
+    onKatalogClick: () -> Unit,
+    onKPIClick: () -> Unit,
+    onListrikClick: () -> Unit,
+    onLapKerjaClick: () -> Unit,
+    onStokPartClick: () -> Unit,           // <--- Tambahkan ini
+    onOrderKerjaClick: () -> Unit,           // ← Harus ada
+    onNavigateToWebView: (String, String) -> Unit
+) {
+    val items = remember { listOf(
+        CategoryItem("Perawatan", R.drawable.perawatan),
+        CategoryItem("Laporan Kerja", R.drawable.laporan),
+        CategoryItem("KPI", R.drawable.kpi),
+        CategoryItem("Listrik", Icons.Default.ElectricBolt),
+        CategoryItem("Katalog", R.drawable.catalog),
+        CategoryItem("Order Kerja", R.drawable.wo),
+        CategoryItem("Part", R.drawable.part),
+        CategoryItem("Lainnya", Icons.Default.Apps)
+    )}
+
+    Column(modifier = Modifier.fillMaxWidth().background(Color.Transparent)
+        .padding(start = 24.dp, end = 24.dp, top = 0.dp, bottom = 20.dp)
+    ) {
+        Text(text = "Kategori", fontSize = 24.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 20.dp), color = Color.White)
+
         items.chunked(4).forEach { row ->
-            Row(modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 row.forEach { item ->
                     CategoryCard(item = item, modifier = Modifier.weight(1f), onClick = {
                         when (item.title) {
                             "Perawatan" -> onPerawatanClick()
                             "Laporan Kerja" -> onLapKerjaClick()
-                            "Katalog" -> onKatalogClick()
                             "KPI" -> onKPIClick()
                             "Listrik" -> onListrikClick()
-                            "Order" -> onOrderClick()
+                            "Katalog" -> onKatalogClick()
+                            "Order Kerja" -> onOrderKerjaClick()
+                            "Part" -> onStokPartClick() // <--- Ubah bagian ini
                         }
                     })
                 }

@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -40,7 +41,8 @@ import com.example.sitekiver01.OrbitronFontFamily
 fun PerawatanScreen(
     modifier: Modifier = Modifier,
     onBack: () -> Unit,
-    onNavigateToWebView: (String, String) -> Unit
+    onNavigateToWebView: (String, String) -> Unit,
+    onNavigateToDetail: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
         // Animated Background Orbs
@@ -95,6 +97,13 @@ fun PerawatanScreen(
                             fontSize = 18.sp,
                             fontFamily = OrbitronFontFamily
                         )
+                        Spacer(Modifier.weight(1f))
+                        IconButton(
+                            onClick = onNavigateToDetail,
+                            modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)
+                        ) {
+                            Icon(Icons.Default.History, contentDescription = "History", tint = Color.White)
+                        }
                     }
                 }
             }
@@ -286,6 +295,6 @@ fun PerawatanScreen(
 @Composable
 fun PerawatanScreenPreview() {
     SiTekiVer01Theme {
-        PerawatanScreen(onBack = {}, onNavigateToWebView = { _, _ -> })
+        PerawatanScreen(onBack = {}, onNavigateToWebView = { _, _ -> }, onNavigateToDetail = {})
     }
 }

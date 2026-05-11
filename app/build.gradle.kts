@@ -91,4 +91,6 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
     implementation("com.google.firebase:firebase-firestore")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+    implementation("androidx.activity:activity-compose:1.9.3")
 }
