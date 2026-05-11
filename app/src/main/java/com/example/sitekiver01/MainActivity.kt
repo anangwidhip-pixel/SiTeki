@@ -692,29 +692,52 @@ fun TopHeader(onNavigateToWebView: (String, String) -> Unit, onNavigateToIsiPera
                 val todayTasks = getPendingTasks(today, masterArray, doneMap)
                 list.addAll(todayTasks)
 
+                Log.d("MaintenanceLog", "===== TODAY TASKS =====")
+                Log.d("MaintenanceLog", "Total today tasks: ${todayTasks.size}")
+                todayTasks.forEach { task ->
+                    Log.d("MaintenanceLog", "  → ${task.namaAsli} | Jenis: ${task.jenis} | Status: ${task.status} | Tanggal: ${task.tanggal}")
+                }
+
                 // 2. Jika tidak ada jadwal hari ini → Ambil pending bulan ini
                 if (todayTasks.isEmpty()) {
+                    Log.d("MaintenanceLog", "===== NO TODAY TASKS - CHECKING MONTH =====")
                     val currentMonth = today.get(Calendar.MONTH)
                     val currentYear = today.get(Calendar.YEAR)
 
                     val monthCal = today.clone() as Calendar
+                    val seenMachines = mutableSetOf<String>()
+
                     for (day in 1..31) {
                         monthCal.set(currentYear, currentMonth, day)
                         if (monthCal.get(Calendar.MONTH) != currentMonth) break
 
                         val monthTasks = getPendingTasks(monthCal, masterArray, doneMap)
                         monthTasks.forEach { task ->
-                            if (list.none { it.namaAsli == task.namaAsli }) {
+                            if (!seenMachines.contains(task.namaAsli)) {
                                 list.add(task)
+                                seenMachines.add(task.namaAsli)
+                                Log.d("MaintenanceLog", "  → ${task.namaAsli} | Tanggal: ${task.tanggal}")
                             }
                         }
                     }
+                    Log.d("MaintenanceLog", "Total month tasks (unique): ${list.size}")
+                } else {
+                    Log.d("MaintenanceLog", "===== SHOWING TODAY TASKS ONLY =====")
                 }
 
-                notificationData = list.take(15)
+                // CEK: Hapus duplikat jika masih ada
+                val finalList = list.distinctBy { it.namaAsli }
+                notificationData = finalList
+
+                Log.d("MaintenanceLog", "===== FINAL RESULT =====")
+                Log.d("MaintenanceLog", "Total mesin yang ditampilkan: ${finalList.size}")
+                finalList.forEach { task ->
+                    Log.d("MaintenanceLog", "  ✓ ${task.namaAsli}")
+                }
 
             } catch (e: Exception) {
                 Log.e("TopHeader", "Error fetching tasks", e)
+                e.printStackTrace()
             } finally {
                 isLoading = false
             }
@@ -814,11 +837,34 @@ fun TopHeader(onNavigateToWebView: (String, String) -> Unit, onNavigateToIsiPera
                                                 color = Color.White,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
-                                            ); Text(
-                                            task.jenis,
-                                            fontSize = 11.sp,
-                                            color = GlassTextMuted
-                                        )
+                                            )
+
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    task.jenis,
+                                                    fontSize = 11.sp,
+                                                    color = GlassTextMuted
+                                                )
+                                                Spacer(Modifier.width(6.dp))
+                                                // === KETERANGAN BULANAN / MINGGUAN ===
+                                                val periodeLabel = when (task.status) {
+                                                    "B" -> "Bulanan (B)"
+                                                    "M" -> "Mingguan (M)"
+                                                    else -> "Bulanan (B)"
+                                                }
+                                                Text(
+                                                    periodeLabel,
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = GlassAccentCyan,
+                                                    modifier = Modifier
+                                                        .background(
+                                                            GlassAccentCyan.copy(alpha = 0.15f),
+                                                            RoundedCornerShape(4.dp)
+                                                        )
+                                                        .padding(horizontal = 6.dp, vertical = 1.dp)
+                                                )
+                                            }
                                         }
                                         Icon(
                                             Icons.AutoMirrored.Filled.OpenInNew,
@@ -912,36 +958,152 @@ fun TopHeader(onNavigateToWebView: (String, String) -> Unit, onNavigateToIsiPera
 @Composable
 fun MaintenanceTable(data: List<MaintenanceTask>, onActionClick: (MaintenanceTask) -> Unit) {
     var isExpanded by remember { mutableStateOf(false) }
+
     Column(modifier = Modifier.fillMaxWidth()) {
-        Surface(modifier = Modifier.fillMaxWidth().clickable { isExpanded = !isExpanded }, shape = if (isExpanded) RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp) else RoundedCornerShape(24.dp), color = GlassSurface, border = BorderStroke(1.dp, GlassBorder)) {
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().clickable { isExpanded = !isExpanded },
+            shape = if (isExpanded) RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            else RoundedCornerShape(24.dp),
+            color = GlassSurface,
+            border = BorderStroke(1.dp, GlassBorder)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.AutoMirrored.Rounded.ListAlt, null, tint = GlassAccentCyan, modifier = Modifier.size(24.dp))
-                    Spacer(modifier = Modifier.width(16.dp)); Text(text = if (data.isEmpty()) "Tidak ada jadwal perawatan" else "${data.size} Mesin Perlu Dicek", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = if (data.isEmpty()) "Tidak ada jadwal perawatan"
+                        else "${data.size} Mesin Perlu Dicek",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
                 }
                 val rotation by animateFloatAsState(targetValue = if (isExpanded) 180f else 0f, label = "arrow")
                 Icon(Icons.Default.KeyboardArrowDown, null, tint = GlassAccentCyan, modifier = Modifier.graphicsLayer { rotationZ = rotation })
             }
         }
-        AnimatedVisibility(visible = isExpanded && data.isNotEmpty(), enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-            Surface(modifier = Modifier.fillMaxWidth().heightIn(max = 350.dp), shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp), color = Color.White.copy(alpha = 0.03f), border = BorderStroke(1.dp, GlassBorder)) {
+
+        AnimatedVisibility(
+            visible = isExpanded && data.isNotEmpty(),
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 350.dp),
+                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                color = Color.White.copy(alpha = 0.03f),
+                border = BorderStroke(1.dp, GlassBorder)
+            ) {
                 Column(Modifier.fillMaxSize()) {
-                    Row(Modifier.fillMaxWidth().background(Color.White.copy(alpha = 0.08f)).padding(horizontal = 16.dp, vertical = 10.dp)) {
-                        Text("IDENTITAS MESIN", Modifier.weight(1f), color = GlassAccentCyan, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, fontFamily = OrbitronFontFamily)
-                        Text("AKSI", Modifier.width(90.dp), color = GlassAccentCyan, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, fontSize = 11.sp, fontFamily = OrbitronFontFamily)
+                    // Header Tabel
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            "IDENTITAS MESIN",
+                            Modifier.weight(1f),
+                            color = GlassAccentCyan,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 11.sp,
+                            fontFamily = OrbitronFontFamily
+                        )
+                        Text(
+                            "AKSI",
+                            Modifier.width(90.dp),
+                            color = GlassAccentCyan,
+                            fontWeight = FontWeight.ExtraBold,
+                            textAlign = TextAlign.Center,
+                            fontSize = 11.sp,
+                            fontFamily = OrbitronFontFamily
+                        )
                     }
+
                     LazyColumn(Modifier.fillMaxWidth(), contentPadding = PaddingValues(bottom = 12.dp)) {
                         itemsIndexed(data) { index, task ->
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Column(Modifier.weight(1f)) {
-                                    Text(text = task.namaDisplay, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                    Spacer(modifier = Modifier.height(2.dp)); Surface(color = GlassAccentCyan.copy(alpha = 0.1f), shape = RoundedCornerShape(4.dp)) { Text(text = task.jenis, color = GlassAccentCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)) }
+                                    Text(
+                                        text = task.namaDisplay,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        // Jenis Perawatan
+                                        Surface(
+                                            color = GlassAccentCyan.copy(alpha = 0.1f),
+                                            shape = RoundedCornerShape(4.dp)
+                                        ) {
+                                            Text(
+                                                text = task.jenis,
+                                                color = GlassAccentCyan,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+
+                                        Spacer(Modifier.width(8.dp))
+
+                                        // === LABEL BULANAN / MINGGUAN ===
+                                        val periodeLabel = when (task.status) {
+                                            "B" -> "Bulanan (B)"
+                                            "M" -> "Mingguan (M)"
+                                            else -> "Bulanan (B)"
+                                        }
+
+                                        Text(
+                                            text = periodeLabel,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (task.status == "M") Color(0xFFFFC107) else GlassAccentCyan,
+                                            modifier = Modifier
+                                                .background(
+                                                    (if (task.status == "M") Color(0xFFFFC107) else GlassAccentCyan)
+                                                        .copy(alpha = 0.15f),
+                                                    RoundedCornerShape(4.dp)
+                                                )
+                                                .padding(horizontal = 6.dp, vertical = 1.dp)
+                                        )
+                                    }
                                 }
-                                Button(onClick = { onActionClick(task) }, modifier = Modifier.width(90.dp).height(36.dp), contentPadding = PaddingValues(0.dp), colors = ButtonDefaults.buttonColors(containerColor = GlassAccentCyan), shape = RoundedCornerShape(10.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Build, null, tint = Color.Black, modifier = Modifier.size(14.dp)); Spacer(Modifier.width(6.dp)); Text("BUKA", color = Color.Black, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp) }
+
+                                Button(
+                                    onClick = { onActionClick(task) },
+                                    modifier = Modifier.width(90.dp).height(36.dp),
+                                    contentPadding = PaddingValues(0.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = GlassAccentCyan),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Build, null, tint = Color.Black, modifier = Modifier.size(14.dp))
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("BUKA", color = Color.Black, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp)
+                                    }
                                 }
                             }
-                            if (index < data.size - 1) HorizontalDivider(Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp, color = GlassBorder)
+
+                            if (index < data.size - 1) {
+                                HorizontalDivider(
+                                    Modifier.padding(horizontal = 16.dp),
+                                    thickness = 0.5.dp,
+                                    color = GlassBorder
+                                )
+                            }
                         }
                     }
                 }
