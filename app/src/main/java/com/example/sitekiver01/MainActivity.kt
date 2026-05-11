@@ -12,6 +12,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -34,7 +35,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -69,6 +69,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
+
+
+val TechCyan = Color(0xFF06B6D4)
+val GlassBase = Color(0xFF050B14)
+val GlassSurface = Color(0xFF1E293B).copy(alpha = 0.7f)
+val GlassBorder = Color(0xFF334155)
+val GlassTextMuted = Color(0xFF94A3B8)
+val GlassAccentPurple = Color(0xFF8B5CF6)
+val GlassAccentCyan = Color(0xFF06B6D4)
+val GlassAccentGreen = Color(0xFF10B981)
+
+data class ActualRecord(val nama_mesin: String, val tanggal: String)
+
+data class MaintenanceTask(
+    val jenis: String,
+    val namaDisplay: String,
+    val namaAsli: String,
+    val status: String,
+    val tanggal: String,
+    val isLate: Boolean = false
+)
 
 class MainActivity : ComponentActivity() {
 
@@ -129,7 +150,6 @@ suspend fun fetchOpenOrders(url: String): List<OrderItem> {
         result
     }
 }
-
 @Composable
 fun AppNavigation() {
     val context = LocalContext.current
@@ -457,13 +477,7 @@ data class CategoryItem(val title: String, val icon: Any)
 data class NewsItem(val title: String, val description: String, val date: String, val image: Int)
 val OrbitronFontFamily = FontFamily.SansSerif
 
-data class MaintenanceTask(
-    val jenis: String,
-    val namaDisplay: String,
-    val namaAsli: String,
-    val status: String,
-    val tanggal: String
-)
+
 
 fun getPendingTasks(
     cal: Calendar,
@@ -507,6 +521,7 @@ fun DashboardScreen(
 ) {
     // 1. Inisialisasi wadah data
     var openOrders by remember { mutableStateOf<List<OrderItem>>(emptyList()) }
+    var maintenanceTasks by remember { mutableStateOf<List<MaintenanceTask>>(emptyList()) }
     val apiUrl = "https://script.google.com/macros/s/AKfycbyP84TUvoujsa0uuCYLR172Ft7EHzY_ofH_XkmJnYh1Y3qDICdSnlBBkGf9VU1WivQ/exec?action=getAllOrders"
 
     // 2. Ambil data dari Google Sheets saat layar dibuka
@@ -521,10 +536,18 @@ fun DashboardScreen(
             openOrders = openOrders,
             onOrderKerjaClick = onOrderKerjaClick,
             onNavigateToWebView = onNavigateToWebView,
-            onNavigateToIsiPerawatan = onNavigateToIsiPerawatan
+            onNavigateToIsiPerawatan = onNavigateToIsiPerawatan,
+            onTasksFetched = { fetchedTasks ->
+                maintenanceTasks = fetchedTasks} //
         )
         Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-            Text(text = "Order Kerja", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp); Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Order Kerja",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp
+            )
+            Spacer(modifier = Modifier.height(16.dp))
             MachineCard(
                 // Jika data masih ditarik, tulis "Mengecek...", jika sudah ada, tampilkan
                 orders = if (openOrders.isEmpty()) {
@@ -545,6 +568,8 @@ fun DashboardScreen(
                 }
             )
         }
+
+        // ---------------------------------------------------------
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -653,10 +678,17 @@ fun NavItem(icon: Any, label: String, isSelected: Boolean, hasBadge: Boolean = f
 }
 
 @Composable
-fun TopHeader(onNavigateToWebView: (String, String) -> Unit, onNavigateToIsiPerawatan: (String, String, String) -> Unit, openOrders: List<OrderItem>,onOrderKerjaClick: (OrderItem) -> Unit) {
+fun TopHeader(
+    onNavigateToWebView: (String, String) -> Unit,
+    onNavigateToIsiPerawatan: (String, String, String) -> Unit,
+    openOrders: List<OrderItem>,
+    onOrderKerjaClick: (OrderItem) -> Unit,
+    onTasksFetched: (List<MaintenanceTask>) -> Unit // <--- Pastikan parameter ini ADA
+) {
     var notificationData by remember { mutableStateOf<List<MaintenanceTask>>(emptyList()) }
     var showNotificationDialog by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         isLoading = true
         withContext(Dispatchers.IO) {
@@ -664,6 +696,7 @@ fun TopHeader(onNavigateToWebView: (String, String) -> Unit, onNavigateToIsiPera
                 // Master Data
                 val masterUrl =
                     URL("https://script.google.com/macros/s/AKfycbwSnaaYVxXWVngeGQYU2im2G5FQ6L7WstjTkx7IW3jVYcuELECt0_cyvM0cFx4Uf8U/exec?action=getRawatMaster")
+
                 val masterText =
                     masterUrl.openConnection().inputStream.bufferedReader().use { it.readText() }
                 val masterArray = JSONArray(masterText)
@@ -686,32 +719,39 @@ fun TopHeader(onNavigateToWebView: (String, String) -> Unit, onNavigateToIsiPera
                 }
 
                 val today = Calendar.getInstance()
-                val list = mutableListOf<MaintenanceTask>()
+                val finalList = mutableListOf<MaintenanceTask>()
 
-                // 1. Prioritas Utama: Jadwal HARI INI
+                // --- [REVISI LOGIKA: PRIORITAS HARI INI + BACKLOG] ---
+                // 1. Ambil Jadwal Hari Ini
                 val todayTasks = getPendingTasks(today, masterArray, doneMap)
-                list.addAll(todayTasks)
+                finalList.addAll(todayTasks)
 
-                // 2. Jika tidak ada jadwal hari ini → Ambil pending bulan ini
-                if (todayTasks.isEmpty()) {
-                    val currentMonth = today.get(Calendar.MONTH)
-                    val currentYear = today.get(Calendar.YEAR)
+                // 2. Selalu cari Backlog (Hutang) dari awal bulan sampai kemarin
+                val currentDay = today.get(Calendar.DAY_OF_MONTH)
+                val currentMonth = today.get(Calendar.MONTH)
+                val currentYear = today.get(Calendar.YEAR)
 
-                    val monthCal = today.clone() as Calendar
-                    for (day in 1..31) {
-                        monthCal.set(currentYear, currentMonth, day)
-                        if (monthCal.get(Calendar.MONTH) != currentMonth) break
+                for (day in 1 until currentDay) { // Loop dari tgl 1 sampai kemarin
+                    val checkCal = Calendar.getInstance().apply {
+                        set(currentYear, currentMonth, day)
+                    }
+                    val backlogTasks = getPendingTasks(checkCal, masterArray, doneMap)
 
-                        val monthTasks = getPendingTasks(monthCal, masterArray, doneMap)
-                        monthTasks.forEach { task ->
-                            if (list.none { it.namaAsli == task.namaAsli }) {
-                                list.add(task)
-                            }
+                    backlogTasks.forEach { task ->
+                        // [KUNCI] Cek agar tidak duplikat mesin & beri tanda late
+                        if (finalList.none { it.namaAsli == task.namaAsli }) {
+                            finalList.add(task.copy(namaDisplay = "[LATE] ${task.namaDisplay}"))
                         }
                     }
                 }
 
-                notificationData = list.take(15)
+                val result = finalList.take(15)
+
+// Update state lokal
+                notificationData = result
+
+// Kirim data ke Dashboard via callback
+                onTasksFetched(result)
 
             } catch (e: Exception) {
                 Log.e("TopHeader", "Error fetching tasks", e)
@@ -845,53 +885,78 @@ fun TopHeader(onNavigateToWebView: (String, String) -> Unit, onNavigateToIsiPera
 
     Box(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars)
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(bottom = 24.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "SISTEM INFORMASI TEKNIK",
-                    color = Color.White,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 20.sp,
-                    fontFamily = OrbitronFontFamily
-                )
+                // [REVISI: Header Style]
+                Column {
+                    Text(
+                        text = "SISTEM INFORMASI",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.sp
+                    )
+                    Text(
+                        text = "TEKNIK RAJA BESI",
+                        color = TechCyan, // Menggunakan warna Cyan dari tema Sci-Fi
+                        fontWeight = FontWeight.Black,
+                        fontSize = 20.sp,
+                        fontFamily = OrbitronFontFamily
+                    )
+                }
+
                 Spacer(Modifier.weight(1f))
                 Box {
                     IconButton(
                         onClick = { showNotificationDialog = true },
                         modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)
                     ) {
+                        // [REVISI: Icon Tint berubah kuning jika ada backlog]
+                        val hasLate = notificationData.any { it.namaDisplay.contains("[LATE]") }
                         Icon(
                             Icons.Default.Notifications,
                             null,
-                            tint = Color.White,
+                            tint = if (hasLate) Color.Yellow else Color.White,
                             modifier = Modifier.size(24.dp)
                         )
                     }
                     if (notificationData.isNotEmpty()) {
                         Box(
-                            modifier = Modifier.size(10.dp).background(Color.Red, CircleShape)
-                                .align(Alignment.TopEnd).offset(x = (-2).dp, y = 2.dp)
+                            modifier = Modifier
+                                .size(10.dp)
+                                .background(Color.Red, CircleShape)
+                                .border(1.5.dp, Color(0xFF1A1A1A), CircleShape)
+                                .align(Alignment.TopEnd)
+                                .offset(x = (-2).dp, y = 2.dp)
                         )
                     }
                 }
             }
+
             Spacer(Modifier.height(8.dp)); CarouselBanner(); Spacer(Modifier.height(12.dp))
             Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
-                Text(
-                    text = "Order Perawatan",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(4.dp, 24.dp).background(TechCyan))
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = "Order Perawatan",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        fontFamily = OrbitronFontFamily
+                    )
+                }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
 
                 // Tabel/Konten Perawatan sekarang akan sejajar dengan teks di atasnya
                 MaintenanceTable(
@@ -951,17 +1016,48 @@ fun MaintenanceTable(data: List<MaintenanceTask>, onActionClick: (MaintenanceTas
 }
 
 @Composable
-fun MachineCard(orders: List<String>, buttonText: String, onButtonClick: (Int) -> Unit = {}) {
+fun MachineCard(
+    tasks: List<MaintenanceTask> = emptyList(),
+    orders: List<String> = emptyList(),          // Untuk Order Kerja
+    buttonText: String,
+    onButtonClick: (Int) -> Unit = {},
+    onActionClick: (MaintenanceTask) -> Unit = {} // <--- Pastikan parameter ini ADA
+) {
+
+    val displayList = remember(tasks, orders) {
+        if (tasks.isNotEmpty()) tasks.map { it.namaDisplay }
+        else if (orders.isNotEmpty()) orders
+        else listOf("Tidak ada data...")
+    }
     val pagerState = rememberPagerState(pageCount = { orders.size })
     val isPreview = LocalInspectionMode.current
-    LaunchedEffect(Unit) { if (!isPreview) { while (true) { delay(5000); pagerState.animateScrollToPage((pagerState.currentPage + 1) % orders.size, animationSpec = tween(1000)) } } }
+    LaunchedEffect(orders) {
+        if (!isPreview && orders.size > 1) {
+            while (true) {
+                delay(5000)
+                pagerState.animateScrollToPage(
+                    (pagerState.currentPage + 1) % orders.size,
+                    animationSpec = tween(1000)
+                )
+            }
+        }
+    }
     val density = LocalDensity.current
-    val btnW = 158.dp; val btnH = 29.dp; val cardR = 32.dp
-    val btnWidthPx = with(density) { btnW.toPx() }; val btnHeightPx = with(density) { btnH.toPx() }; val cardRadiusPx = with(density) { cardR.toPx() }; val gapPx = with(density) { 8.dp.toPx() }; val br = btnHeightPx / 2
+    val btnW = 158.dp;
+    val btnH = 29.dp;
+    val cardR = 32.dp
+    val btnWidthPx = with(density) { btnW.toPx() };
+    val btnHeightPx = with(density) { btnH.toPx() };
+    val cardRadiusPx = with(density) { cardR.toPx() };
+    val gapPx = with(density) { 8.dp.toPx() };
+    val br = btnHeightPx / 2
     Box(modifier = Modifier.fillMaxWidth().height(160.dp)) {
         val notchedShape = GenericShape { size, _ ->
             if (size.width > 0 && size.height > 0) {
-                val w = size.width; val h = size.height; val r = cardRadiusPx; val notchTop = h - btnHeightPx - gapPx; val notchLeft = w - btnWidthPx - gapPx
+                val w = size.width; val h = size.height;
+                val r = cardRadiusPx;
+                val notchTop = h - btnHeightPx - gapPx;
+                val notchLeft = w - btnWidthPx - gapPx
                 moveTo(r, 0f); lineTo(w - r, 0f); arcTo(Rect(w - 2 * r, 0f, w, 2 * r), 270f, 90f, false); lineTo(w, notchTop - br); arcTo(Rect(w - 2 * br, notchTop - 2 * br, w, notchTop), 0f, 90f, false); lineTo(notchLeft + br, notchTop); arcTo(Rect(notchLeft, notchTop, notchLeft + 2 * br, notchTop + 2 * br), 270f, -90f, false); lineTo(notchLeft, h - br); arcTo(Rect(notchLeft - 2 * br, h - 2 * br, notchLeft, h), 0f, 90f, false); lineTo(r, h); arcTo(Rect(0f, h - 2 * r, 2 * r, h), 90f, 90f, false); lineTo(0f, r); arcTo(Rect(0f, 0f, 2 * r, 2 * r), 180f, 90f, false); close()
             }
         }
@@ -970,12 +1066,37 @@ fun MachineCard(orders: List<String>, buttonText: String, onButtonClick: (Int) -
                 Icon(painter = painterResource(id = R.drawable.mesin), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(86.dp))
                 Spacer(modifier = Modifier.width(20.dp)); Box(modifier = Modifier.width(1.5.dp).height(64.dp).background(Color.White.copy(alpha = 0.2f))); Spacer(modifier = Modifier.width(20.dp))
                 HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { page ->
-                    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) { Text(text = orders[page], fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
+                        // REVISI: Tambahkan logika warna Kuning jika mengandung kata [LATE]
+                        val isLate = orders[page].contains("[LATE]")
+                        Text(
+                            text = orders[page],
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = if (isLate) Color.Yellow else Color.White, // <--- GANTI INI
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }
-        Button(onClick = { onButtonClick(pagerState.currentPage) }, modifier = Modifier.align(Alignment.BottomEnd).width(btnW).height(btnH), shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent), contentPadding = PaddingValues(0.dp)) {
-            Box(modifier = Modifier.fillMaxSize().background(brush = Brush.horizontalGradient(colors = listOf(GlassAccentCyan, Color(0xFF0054B2))), shape = CircleShape), contentAlignment = Alignment.Center) { Text(text = buttonText, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 10.sp) }
+        Button(
+            onClick = {
+                // TAMBAHKAN: Cek index agar tidak crash
+                if (tasks.isNotEmpty()) {
+                    val currentTask = tasks[pagerState.currentPage % tasks.size]
+                    onActionClick(currentTask)
+                }
+            },
+            modifier = Modifier.align(Alignment.BottomEnd).width(btnW).height(btnH),
+            shape = CircleShape,
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+            contentPadding = PaddingValues(0.dp)
+        ) {
+            Box(modifier = Modifier.fillMaxSize().background(brush = Brush.horizontalGradient(colors = listOf(GlassAccentCyan, Color(0xFF0054B2))), shape = CircleShape), contentAlignment = Alignment.Center) {
+                Text(text = buttonText, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+            }
         }
     }
 }
