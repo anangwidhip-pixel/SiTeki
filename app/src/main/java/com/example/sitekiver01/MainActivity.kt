@@ -69,6 +69,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.async
 
 class MainActivity : ComponentActivity() {
 
@@ -506,13 +507,15 @@ fun DashboardScreen(
     onNavigateToIsiPerawatan: (String, String, String) -> Unit
 ) {
     // 1. Inisialisasi wadah data
-    var openOrders by remember { mutableStateOf<List<OrderItem>>(emptyList()) }
     val apiUrl = "https://script.google.com/macros/s/AKfycbyP84TUvoujsa0uuCYLR172Ft7EHzY_ofH_XkmJnYh1Y3qDICdSnlBBkGf9VU1WivQ/exec?action=getAllOrders"
+    var openOrders by remember { mutableStateOf<List<OrderItem>>(emptyList()) }
+    var isLoadingOrders by remember { mutableStateOf(true) }
 
     // 2. Ambil data dari Google Sheets saat layar dibuka
     LaunchedEffect(Unit) {
+        isLoadingOrders = true
         openOrders = fetchOpenOrders(apiUrl)
-        openOrders.forEach { println("DEBUG: Kerusakan=${it.kerusakan}, Mesin=${it.namaMesin}") }
+        isLoadingOrders = false
     }
 
     Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -524,26 +527,35 @@ fun DashboardScreen(
             onNavigateToIsiPerawatan = onNavigateToIsiPerawatan
         )
         Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-            Text(text = "Order Kerja", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp); Spacer(modifier = Modifier.height(16.dp))
-            MachineCard(
-                // Jika data masih ditarik, tulis "Mengecek...", jika sudah ada, tampilkan
-                orders = if (openOrders.isEmpty()) {
-                    listOf("Mengecek Order...")
-                } else {
-                    openOrders.mapIndexed { index, it ->
-                        // 1. Menggunakan index + 1 untuk nomor urut 1, 2, 3...
-                        // 2. Menggunakan \n untuk baris baru (Enter)
-                        // 3. Tambahkan teks manual jika it.namaMesin kosong untuk deteksi
-                        "Order ${index + 1}: ${it.kerusakan}\n${it.namaMesin.ifEmpty { "Data Kosong" }}"
-                    }
-                },
-                buttonText = "Lakukan Perbaikan",
-                onButtonClick = { index ->
-                    if (openOrders.isNotEmpty()) {
-                        onOrderKerjaClick(openOrders[index])
+            Text(text = "Order Kerja", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (isLoadingOrders) {
+                // Skeleton untuk Order Kerja
+                Surface(
+                    modifier = Modifier.fillMaxWidth().height(160.dp),
+                    shape = RoundedCornerShape(32.dp),
+                    color = GlassSurface
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = GlassAccentCyan)
                     }
                 }
-            )
+            } else {
+                MachineCard(
+                    orders = if (openOrders.isEmpty()) {
+                        listOf("Tidak ada order kerja terbuka")
+                    } else {
+                        openOrders.mapIndexed { index, it ->
+                            "Order ${index + 1}: ${it.kerusakan}\n${it.namaMesin.ifEmpty { "Data Kosong" }}"
+                        }
+                    },
+                    buttonText = "Lakukan Perbaikan",
+                    onButtonClick = { index ->
+                        if (openOrders.isNotEmpty()) onOrderKerjaClick(openOrders[index])
+                    }
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -653,37 +665,51 @@ fun NavItem(icon: Any, label: String, isSelected: Boolean, hasBadge: Boolean = f
 }
 
 @Composable
-fun TopHeader(onNavigateToWebView: (String, String) -> Unit, onNavigateToIsiPerawatan: (String, String, String) -> Unit, openOrders: List<OrderItem>,onOrderKerjaClick: (OrderItem) -> Unit) {
+fun TopHeader(
+    onNavigateToWebView: (String, String) -> Unit,
+    onNavigateToIsiPerawatan: (String, String, String) -> Unit,
+    openOrders: List<OrderItem>,
+    onOrderKerjaClick: (OrderItem) -> Unit
+) {
     var notificationData by remember { mutableStateOf<List<MaintenanceTask>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }           // default true
     var showNotificationDialog by remember { mutableStateOf(false) }
-    var isLoading by remember { mutableStateOf(false) }
+
+    // Caching sederhana
+    var cachedMaster by remember { mutableStateOf<JSONArray?>(null) }
+    var cachedDone by remember { mutableStateOf<Map<String, Set<String>>?>(null) }
     LaunchedEffect(Unit) {
         isLoading = true
         withContext(Dispatchers.IO) {
             try {
-                // Master Data
-                val masterUrl =
-                    URL("https://script.google.com/macros/s/AKfycbwSnaaYVxXWVngeGQYU2im2G5FQ6L7WstjTkx7IW3jVYcuELECt0_cyvM0cFx4Uf8U/exec?action=getRawatMaster")
-                val masterText =
-                    masterUrl.openConnection().inputStream.bufferedReader().use { it.readText() }
-                val masterArray = JSONArray(masterText)
-
-                // Data yang sudah dilakukan
-                val actualUrl =
-                    URL("https://script.google.com/macros/s/AKfycbwQ7ocBNsl4x5-rGLrSyvkyluhSRl3B_LvmkA3cFuvuL9pBbVAOUI3i_Vu6jwfkfOA/exec?action=getPerawatan")
-                val actualText =
-                    actualUrl.openConnection().inputStream.bufferedReader().use { it.readText() }
-                val actualArray = JSONArray(actualText)
-
-                val doneMap = mutableMapOf<String, MutableSet<String>>()
-                for (i in 0 until actualArray.length()) {
-                    val obj = actualArray.getJSONObject(i)
-                    val name = obj.optString("nama_mesin")
-                    val date = obj.optString("tanggal").trim()
-                    if (name.isNotEmpty() && date.isNotEmpty()) {
-                        doneMap.getOrPut(name) { mutableSetOf() }.add(date)
-                    }
+                // === PARALLEL FETCH ===
+                val masterDeferred = async {
+                    val url = URL("https://script.google.com/macros/s/AKfycbwSnaaYVxXWVngeGQYU2im2G5FQ6L7WstjTkx7IW3jVYcuELECt0_cyvM0cFx4Uf8U/exec?action=getRawatMaster")
+                    val text = url.openConnection().inputStream.bufferedReader().use { it.readText() }
+                    JSONArray(text)
                 }
+
+                val doneDeferred = async {
+                    val url = URL("https://script.google.com/macros/s/AKfycbwQ7ocBNsl4x5-rGLrSyvkyluhSRl3B_LvmkA3cFuvuL9pBbVAOUI3i_Vu6jwfkfOA/exec?action=getPerawatan")
+                    val text = url.openConnection().inputStream.bufferedReader().use { it.readText() }
+                    val array = JSONArray(text)
+                    val map = mutableMapOf<String, MutableSet<String>>()
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        val name = obj.optString("nama_mesin")
+                        val date = obj.optString("tanggal").trim()
+                        if (name.isNotEmpty() && date.isNotEmpty()) {
+                            map.getOrPut(name) { mutableSetOf() }.add(date)
+                        }
+                    }
+                    map
+                }
+
+                val masterArray = masterDeferred.await()
+                val doneMap = doneDeferred.await()
+
+                cachedMaster = masterArray
+                cachedDone = doneMap
 
                 val today = Calendar.getInstance()
                 val list = mutableListOf<MaintenanceTask>()
@@ -692,18 +718,10 @@ fun TopHeader(onNavigateToWebView: (String, String) -> Unit, onNavigateToIsiPera
                 val todayTasks = getPendingTasks(today, masterArray, doneMap)
                 list.addAll(todayTasks)
 
-                Log.d("MaintenanceLog", "===== TODAY TASKS =====")
-                Log.d("MaintenanceLog", "Total today tasks: ${todayTasks.size}")
-                todayTasks.forEach { task ->
-                    Log.d("MaintenanceLog", "  → ${task.namaAsli} | Jenis: ${task.jenis} | Status: ${task.status} | Tanggal: ${task.tanggal}")
-                }
-
                 // 2. Jika tidak ada jadwal hari ini → Ambil pending bulan ini
                 if (todayTasks.isEmpty()) {
-                    Log.d("MaintenanceLog", "===== NO TODAY TASKS - CHECKING MONTH =====")
                     val currentMonth = today.get(Calendar.MONTH)
                     val currentYear = today.get(Calendar.YEAR)
-
                     val monthCal = today.clone() as Calendar
                     val seenMachines = mutableSetOf<String>()
 
@@ -716,28 +734,15 @@ fun TopHeader(onNavigateToWebView: (String, String) -> Unit, onNavigateToIsiPera
                             if (!seenMachines.contains(task.namaAsli)) {
                                 list.add(task)
                                 seenMachines.add(task.namaAsli)
-                                Log.d("MaintenanceLog", "  → ${task.namaAsli} | Tanggal: ${task.tanggal}")
                             }
                         }
                     }
-                    Log.d("MaintenanceLog", "Total month tasks (unique): ${list.size}")
-                } else {
-                    Log.d("MaintenanceLog", "===== SHOWING TODAY TASKS ONLY =====")
                 }
 
-                // CEK: Hapus duplikat jika masih ada
-                val finalList = list.distinctBy { it.namaAsli }
-                notificationData = finalList
-
-                Log.d("MaintenanceLog", "===== FINAL RESULT =====")
-                Log.d("MaintenanceLog", "Total mesin yang ditampilkan: ${finalList.size}")
-                finalList.forEach { task ->
-                    Log.d("MaintenanceLog", "  ✓ ${task.namaAsli}")
-                }
+                notificationData = list.distinctBy { it.namaAsli }
 
             } catch (e: Exception) {
-                Log.e("TopHeader", "Error fetching tasks", e)
-                e.printStackTrace()
+                Log.e("TopHeader", "Error fetching maintenance data", e)
             } finally {
                 isLoading = false
             }
@@ -891,7 +896,8 @@ fun TopHeader(onNavigateToWebView: (String, String) -> Unit, onNavigateToIsiPera
 
     Box(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars)
+            modifier = Modifier.fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(bottom = 24.dp)
         ) {
             Row(
@@ -926,30 +932,36 @@ fun TopHeader(onNavigateToWebView: (String, String) -> Unit, onNavigateToIsiPera
                     }
                 }
             }
-            Spacer(Modifier.height(8.dp)); CarouselBanner(); Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(8.dp))
+            CarouselBanner()
+            Spacer(Modifier.height(12.dp))
+
             Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                 Spacer(modifier = Modifier.height(24.dp))
-
-                Text(
-                    text = "Order Perawatan",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp
-                )
-
+                Text("Order Perawatan", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp)
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Tabel/Konten Perawatan sekarang akan sejajar dengan teks di atasnya
-                MaintenanceTable(
-                    data = notificationData,
-                    onActionClick = { task ->
-                        onNavigateToIsiPerawatan(
-                            task.namaAsli,
-                            task.tanggal,
-                            task.status
-                        )
+                if (isLoading) {
+                    // Skeleton Loading
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().height(180.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        color = GlassSurface,
+                        border = BorderStroke(1.dp, GlassBorder)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = GlassAccentCyan)
+                        }
                     }
-                )
+                } else {
+                    MaintenanceTable(
+                        data = notificationData,
+                        onActionClick = { task ->
+                            onNavigateToIsiPerawatan(task.namaAsli, task.tanggal, task.status)
+                        }
+                    )
+                }
             }
         }
     }
