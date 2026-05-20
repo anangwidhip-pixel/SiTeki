@@ -142,14 +142,14 @@ class PerawatanViewModel : ViewModel() {
     }
 
     fun loadDynamicItems(nama: String, waktu: String) {
+        if (allData.isEmpty()) return // Jangan proses jika data master belum ada
+
         val w = if (waktu == "Mingguan") "M" else "B"
         dynamicItems.clear()
         val result = allData.filter {
             it.nama.trim().equals(nama.trim(), ignoreCase = true) && it.waktu == w
         }
         dynamicItems.addAll(result)
-
-        Log.d("DynamicItems", "Loaded ${result.size} items for $nama ($waktu)")
     }
 }
 
@@ -198,14 +198,19 @@ fun IsiPerawatanScreen(
     }
 
     LaunchedEffect(selectedNama, selectedWaktu) {
-        if (selectedNama.isNotEmpty() && selectedWaktu.isNotEmpty()) {
+        if (selectedNama.isNotEmpty() && selectedWaktu.isNotEmpty() && vm.allData.isNotEmpty()) {
             vm.loadDynamicItems(selectedNama, selectedWaktu)
         }
     }
     // Load full master data (tetap diperlukan untuk dropdown & dynamic items)
     LaunchedEffect(Unit) {
         vm.fetchData {
-            // Setelah data master selesai load
+            // Callback ini dipanggil setelah data master selesai di-download
+            if (selectedNama.isNotEmpty() && selectedWaktu.isNotEmpty()) {
+                vm.loadDynamicItems(selectedNama, selectedWaktu)
+            }
+
+            // Logika dropdown otomatis Anda yang sudah ada
             if (initialMachine.isNotEmpty()) {
                 val machineData = vm.allData.find {
                     it.nama.trim().equals(initialMachine.trim(), ignoreCase = true)

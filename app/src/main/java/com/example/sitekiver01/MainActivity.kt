@@ -371,7 +371,14 @@ fun AppNavigation() {
                             modifier = modifierWithPadding.padding(top = innerPadding.calculateTopPadding()),
                             onBack = { currentScreen = Screen.Dashboard; selectedIndex = 0 },
                             onNavigateToWebView = navigateToWebView,
-                            onNavigateToDetail = { currentScreen = Screen.DetailPerawatan }   // ← Tambahkan ini
+                            onNavigateToIsiPerawatan = { machineName, tanggal, jenis ->
+                                isiPerawatanMachine = machineName
+                                isiPerawatanDate = tanggal
+                                isiPerawatanWaktu = jenis
+                                previousScreen = Screen.Perawatan      // Kembali ke PerawatanScreen
+                                currentScreen = Screen.IsiPerawatan
+                            },
+                            onNavigateToDetail = { currentScreen = Screen.DetailPerawatan }
                         )
                     }
                     Screen.Katalog -> {
