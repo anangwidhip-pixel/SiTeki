@@ -80,6 +80,10 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.animation)
 
+    // ==================== COIL IMAGE LOADING (NEW) ====================
+    // For async image loading in Compose
+    implementation("io.coil-kt.coil3:coil-compose:3.0.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
