@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
@@ -63,11 +64,6 @@ import java.net.URL
 import java.util.*
 import kotlin.math.absoluteValue
 import androidx.compose.ui.tooling.preview.Preview as ComposePreview
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.async
 
 class MainActivity : ComponentActivity() {
@@ -154,8 +150,6 @@ fun AppNavigation() {
     var currentOrderRowIndex by remember { mutableIntStateOf(-1) }
     var currentOrderMesin by remember { mutableStateOf("") }
     var currentOrderMesinFromQR by remember { mutableStateOf("") }   // ← Deep Link QR Code
-    var openOrders by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
-    var isLoadingOrders by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val intent = (context as? ComponentActivity)?.intent
@@ -264,7 +258,8 @@ fun AppNavigation() {
         val infiniteTransition = rememberInfiniteTransition(label = "orbs")
         val orbOffset by infiniteTransition.animateFloat(
             initialValue = 0f, targetValue = 100f,
-            animationSpec = infiniteRepeatable(animation = tween(8000, easing = LinearEasing), repeatMode = RepeatMode.Reverse)
+            animationSpec = infiniteRepeatable(animation = tween(8000, easing = LinearEasing), repeatMode = RepeatMode.Reverse),
+            label = "orbOffset"
         )
         Box(modifier = Modifier.size(400.dp).offset(x = (-100).dp + orbOffset.dp, y = (-100).dp + (orbOffset/2).dp)
             .background(GlassAccentPurple.copy(alpha = 0.15f), CircleShape).blur(100.dp))
@@ -299,19 +294,19 @@ fun AppNavigation() {
                         DashboardScreen(
                             modifier = modifierWithPadding,
                             onNavigateToPerawatan = { showPerawatanPopup = true },
-                            onNavigateToKatalog = { currentScreen = Screen.Katalog },
+                            onNavigateToStang = { currentScreen = Screen.Stang },
                             onNavigateToKPI = { currentScreen = Screen.KPI },
                             onNavigateToListrik = { currentScreen = Screen.Listrik },
                             onNavigateToLapKerja = { currentScreen = Screen.LapKerja; selectedIndex = 3 },
                             onOrderKerjaClick = { order ->
-                                currentOrderDetail = order        // Simpan data order yang diklik
+                                currentOrderDetail = order
                                 currentOrderRowIndex = order.rowIndex
                                 currentOrderMesin = order.namaMesin
-                                currentScreen = Screen.DetailOrder // Pindah ke halaman detail atau penyelesaian
-                            },   // ← Harus ada
-                            onNavigateToStokPart = { currentScreen = Screen.StokPart }, // <--- TAMBAHKAN INI
+                                currentScreen = Screen.DetailOrder
+                            },
+                            onNavigateToStokPart = { currentScreen = Screen.StokPart },
                             onNavigateToWebView = navigateToWebView,
-                            onNavigateToOrderKerjaList = { currentScreen = Screen.OrderKerjaList }, // Navigasi kategori
+                            onNavigateToOrderKerjaList = { currentScreen = Screen.OrderKerjaList },
                             onNavigateToIsiPerawatan = onNavigateToIsiPerawatan,
                             onNavigateToLainnya = { currentScreen = Screen.Lainnya }
                         )
@@ -324,14 +319,14 @@ fun AppNavigation() {
                                 currentOrderDetail = order
                                 currentScreen = Screen.DetailOrder
                             },
-                            onBuatOrderClick = { currentScreen = Screen.BuatOrderKerja }   // ← Tambahkan ini
+                            onBuatOrderClick = { currentScreen = Screen.BuatOrderKerja }
                         )
                     }
 
                     Screen.DetailOrder -> {
                         currentOrderDetail?.let { order ->
                             DetailOrderScreen(
-                                order = order,                    // OrderItem
+                                order = order,
                                 onBack = { currentScreen = Screen.Dashboard },
                                 onLakukanPerbaikan = { selectedOrder ->
                                     currentOrderRowIndex = selectedOrder.rowIndex
@@ -375,7 +370,7 @@ fun AppNavigation() {
                                 isiPerawatanMachine = machineName
                                 isiPerawatanDate = tanggal
                                 isiPerawatanWaktu = jenis
-                                previousScreen = Screen.Perawatan      // Kembali ke PerawatanScreen
+                                previousScreen = Screen.Perawatan
                                 currentScreen = Screen.IsiPerawatan
                             },
                             onNavigateToDetail = { currentScreen = Screen.DetailPerawatan }
@@ -384,7 +379,7 @@ fun AppNavigation() {
                     Screen.Katalog -> {
                         KatalogScreen(
                             modifier = modifierWithPadding.padding(top = innerPadding.calculateTopPadding()),
-                            onBack = { currentScreen = Screen.Dashboard },
+                            onBack = { currentScreen = Screen.Lainnya },
                             onNavigateToWebView = navigateToWebView
                         )
                     }
@@ -452,11 +447,17 @@ fun AppNavigation() {
                             initialMachine = isiPerawatanMachine,
                             initialDate = isiPerawatanDate,
                             initialWaktu = isiPerawatanWaktu,
-                            onBack = { currentScreen = previousScreen }   // ← Ini yang penting
+                            onBack = { currentScreen = previousScreen }
                         )
                     }
                     Screen.Lainnya -> {
                         LainnyaScreen(
+                            onBack = { currentScreen = Screen.Dashboard },
+                            onNavigateToKatalog = { currentScreen = Screen.Katalog }
+                        )
+                    }
+                    Screen.Stang -> {
+                        StangScreen(
                             onBack = { currentScreen = Screen.Dashboard }
                         )
                     }
@@ -472,7 +473,6 @@ fun AppNavigation() {
     }
 }
 
-data class CategoryItem(val title: String, val icon: Any)
 data class NewsItem(val title: String, val description: String, val date: String, val image: Int)
 val OrbitronFontFamily = FontFamily.SansSerif
 
@@ -514,23 +514,21 @@ fun getPendingTasks(
 fun DashboardScreen(
     modifier: Modifier = Modifier,
     onNavigateToPerawatan: () -> Unit,
-    onNavigateToKatalog: () -> Unit,
+    onNavigateToStang: () -> Unit,
     onNavigateToKPI: () -> Unit,
     onNavigateToListrik: () -> Unit,
     onNavigateToLapKerja: () -> Unit,
-    onOrderKerjaClick: (OrderItem) -> Unit, // Mengirim data OrderItem saat diklik
-    onNavigateToOrderKerjaList: () -> Unit, // Tambahkan parameter ini
+    onOrderKerjaClick: (OrderItem) -> Unit,
+    onNavigateToOrderKerjaList: () -> Unit,
     onNavigateToStokPart: () -> Unit,
     onNavigateToWebView: (String, String) -> Unit,
     onNavigateToIsiPerawatan: (String, String, String) -> Unit,
     onNavigateToLainnya: () -> Unit
 ) {
-    // 1. Inisialisasi wadah data
     val apiUrl = "https://script.google.com/macros/s/AKfycbyP84TUvoujsa0uuCYLR172Ft7EHzY_ofH_XkmJnYh1Y3qDICdSnlBBkGf9VU1WivQ/exec?action=getAllOrders"
     var openOrders by remember { mutableStateOf<List<OrderItem>>(emptyList()) }
     var isLoadingOrders by remember { mutableStateOf(true) }
 
-    // 2. Ambil data dari Google Sheets saat layar dibuka
     LaunchedEffect(Unit) {
         isLoadingOrders = true
         openOrders = fetchOpenOrders(apiUrl)
@@ -538,7 +536,6 @@ fun DashboardScreen(
     }
 
     Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        // Tampilan Header
         TopHeader(
             openOrders = openOrders,
             onOrderKerjaClick = onOrderKerjaClick,
@@ -550,7 +547,6 @@ fun DashboardScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             if (isLoadingOrders) {
-                // Skeleton untuk Order Kerja
                 Surface(
                     modifier = Modifier.fillMaxWidth().height(160.dp),
                     shape = RoundedCornerShape(32.dp),
@@ -579,20 +575,17 @@ fun DashboardScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Bagian Menu Kategori
         CategorySection(
             onPerawatanClick = onNavigateToPerawatan,
-            onKatalogClick = onNavigateToKatalog,
+            onStangClick = onNavigateToStang,
             onKPIClick = onNavigateToKPI,
             onListrikClick = onNavigateToListrik,
             onLapKerjaClick = onNavigateToLapKerja,
             onStokPartClick = onNavigateToStokPart,
-            onOrderKerjaClick = onNavigateToOrderKerjaList, // Gunakan parameter navigasi list
-            onNavigateToWebView = onNavigateToWebView,
+            onOrderKerjaClick = onNavigateToOrderKerjaList,
             onNavigateToLainnya = onNavigateToLainnya
         )
 
-        // Bagian Berita
         NewsSection()
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -618,24 +611,14 @@ fun CustomBottomNavigation(
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 0: Home
                 NavItem(Icons.Rounded.Dashboard, "Home", selectedIndex == 0) { onItemSelected(0) }
-
-                // 1: Maintenance (Perawatan)
                 NavItem(Icons.Rounded.SettingsSuggest, "Maint", selectedIndex == 1) { onItemSelected(1) }
-
-                // Spacer untuk FAB QR
                 Spacer(modifier = Modifier.width(60.dp))
-
-                // 3: Laporan Kerja
                 NavItem(Icons.AutoMirrored.Rounded.Assignment, "Lap", selectedIndex == 3) { onItemSelected(3) }
-
-                // 4: Akun
                 NavItem(Icons.Rounded.ManageAccounts, "Akun", selectedIndex == 4) { onItemSelected(4) }
             }
         }
 
-        // Floating QR Button
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -692,17 +675,13 @@ fun TopHeader(
     onOrderKerjaClick: (OrderItem) -> Unit
 ) {
     var notificationData by remember { mutableStateOf<List<MaintenanceTask>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }           // default true
+    var isLoading by remember { mutableStateOf(true) }
     var showNotificationDialog by remember { mutableStateOf(false) }
 
-    // Caching sederhana
-    var cachedMaster by remember { mutableStateOf<JSONArray?>(null) }
-    var cachedDone by remember { mutableStateOf<Map<String, Set<String>>?>(null) }
     LaunchedEffect(Unit) {
         isLoading = true
         withContext(Dispatchers.IO) {
             try {
-                // === PARALLEL FETCH ===
                 val masterDeferred = async {
                     val url = URL("https://script.google.com/macros/s/AKfycbwSnaaYVxXWVngeGQYU2im2G5FQ6L7WstjTkx7IW3jVYcuELECt0_cyvM0cFx4Uf8U/exec?action=getRawatMaster")
                     val text = url.openConnection().inputStream.bufferedReader().use { it.readText() }
@@ -728,17 +707,12 @@ fun TopHeader(
                 val masterArray = masterDeferred.await()
                 val doneMap = doneDeferred.await()
 
-                cachedMaster = masterArray
-                cachedDone = doneMap
-
                 val today = Calendar.getInstance()
                 val list = mutableListOf<MaintenanceTask>()
 
-                // 1. Prioritas Utama: Jadwal HARI INI
                 val todayTasks = getPendingTasks(today, masterArray, doneMap)
                 list.addAll(todayTasks)
 
-                // 2. Jika tidak ada jadwal hari ini → Ambil pending bulan ini
                 if (todayTasks.isEmpty()) {
                     val currentMonth = today.get(Calendar.MONTH)
                     val currentYear = today.get(Calendar.YEAR)
@@ -871,7 +845,6 @@ fun TopHeader(
                                                     color = GlassTextMuted
                                                 )
                                                 Spacer(Modifier.width(6.dp))
-                                                // === KETERANGAN BULANAN / MINGGUAN ===
                                                 val periodeLabel = when (task.status) {
                                                     "B" -> "Bulanan (B)"
                                                     "M" -> "Mingguan (M)"
@@ -921,18 +894,39 @@ fun TopHeader(
                 .padding(bottom = 24.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "SISTEM INFORMASI TEKNIK",
-                    color = Color.White,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 20.sp,
-                    fontFamily = OrbitronFontFamily
-                )
-                Spacer(Modifier.weight(1f))
-                Box {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "SISTEM INFORMASI TEKNIK",
+                        color = Color.White,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 18.sp,
+                        fontFamily = OrbitronFontFamily,
+                        maxLines = 1,
+                        overflow = TextOverflow.Clip
+                    )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    Text(
+                        text = "PT. PABRIK BESI BETON RAJA BESI - KIC",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        fontFamily = OrbitronFontFamily,
+                        maxLines = 1
+                    )
+                }
+
+                Box(
+                    modifier = Modifier.padding(start = 8.dp)
+                ) {
                     IconButton(
                         onClick = { showNotificationDialog = true },
                         modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)
@@ -946,8 +940,11 @@ fun TopHeader(
                     }
                     if (notificationData.isNotEmpty()) {
                         Box(
-                            modifier = Modifier.size(10.dp).background(Color.Red, CircleShape)
-                                .align(Alignment.TopEnd).offset(x = (-2).dp, y = 2.dp)
+                            modifier = Modifier
+                                .size(10.dp)
+                                .background(Color.Red, CircleShape)
+                                .align(Alignment.TopEnd)
+                                .offset(x = (-2).dp, y = 2.dp)
                         )
                     }
                 }
@@ -961,9 +958,7 @@ fun TopHeader(
                 Text("Order Perawatan", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp)
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Tabel/Konten Perawatan sekarang akan sejajar dengan teks di atasnya
                 if (isLoading) {
-                    // Skeleton Loading
                     Surface(
                         modifier = Modifier.fillMaxWidth().height(180.dp),
                         shape = RoundedCornerShape(24.dp),
@@ -1015,7 +1010,7 @@ fun MaintenanceTable(data: List<MaintenanceTask>, onActionClick: (MaintenanceTas
                         fontSize = 16.sp
                     )
                 }
-                val rotation by animateFloatAsState(targetValue = if (isExpanded) 180f else 0f, label = "arrow")
+                val rotation by animateFloatAsState(targetValue = if (isExpanded) 180f else 0f, label = "rotation")
                 Icon(Icons.Default.KeyboardArrowDown, null, tint = GlassAccentCyan, modifier = Modifier.graphicsLayer { rotationZ = rotation })
             }
         }
@@ -1032,7 +1027,6 @@ fun MaintenanceTable(data: List<MaintenanceTask>, onActionClick: (MaintenanceTas
                 border = BorderStroke(1.dp, GlassBorder)
             ) {
                 Column(Modifier.fillMaxSize()) {
-                    // Header Tabel
                     Row(
                         Modifier.fillMaxWidth()
                             .background(Color.White.copy(alpha = 0.08f))
@@ -1075,7 +1069,6 @@ fun MaintenanceTable(data: List<MaintenanceTask>, onActionClick: (MaintenanceTas
                                     Spacer(modifier = Modifier.height(4.dp))
 
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        // Jenis Perawatan
                                         Surface(
                                             color = GlassAccentCyan.copy(alpha = 0.1f),
                                             shape = RoundedCornerShape(4.dp)
@@ -1091,7 +1084,6 @@ fun MaintenanceTable(data: List<MaintenanceTask>, onActionClick: (MaintenanceTas
 
                                         Spacer(Modifier.width(8.dp))
 
-                                        // === LABEL BULANAN / MINGGUAN ===
                                         val periodeLabel = when (task.status) {
                                             "B" -> "Bulanan (B)"
                                             "M" -> "Mingguan (M)"
@@ -1174,24 +1166,25 @@ fun MachineCard(orders: List<String>, buttonText: String, onButtonClick: (Int) -
     }
 }
 
+data class CategoryItem(val title: String, val icon: Any)
+
 @Composable
 fun CategorySection(
     onPerawatanClick: () -> Unit,
-    onKatalogClick: () -> Unit,
+    onStangClick: () -> Unit,
     onKPIClick: () -> Unit,
     onListrikClick: () -> Unit,
     onLapKerjaClick: () -> Unit,
-    onStokPartClick: () -> Unit,           // <--- Tambahkan ini
-    onOrderKerjaClick: () -> Unit,           // ← Harus ada
-    onNavigateToLainnya: () -> Unit,   // ← Tambahkan
-    onNavigateToWebView: (String, String) -> Unit
+    onStokPartClick: () -> Unit,
+    onOrderKerjaClick: () -> Unit,
+    onNavigateToLainnya: () -> Unit
 ) {
     val items = remember { listOf(
         CategoryItem("Perawatan", R.drawable.perawatan),
         CategoryItem("Laporan Kerja", R.drawable.laporan),
         CategoryItem("KPI", R.drawable.kpi),
         CategoryItem("Listrik", Icons.Default.ElectricBolt),
-        CategoryItem("Katalog", R.drawable.catalog),
+        CategoryItem("Stang", R.drawable.stang),
         CategoryItem("Order Kerja", R.drawable.wo),
         CategoryItem("Part", R.drawable.part),
         CategoryItem("Lainnya", Icons.Default.Apps)
@@ -1215,10 +1208,10 @@ fun CategorySection(
                             "Laporan Kerja" -> onLapKerjaClick()
                             "KPI" -> onKPIClick()
                             "Listrik" -> onListrikClick()
-                            "Katalog" -> onKatalogClick()
+                            "Stang" -> onStangClick()
                             "Order Kerja" -> onOrderKerjaClick()
-                            "Part" -> onStokPartClick() // <--- Ubah bagian ini
-                            "Lainnya" -> onNavigateToLainnya()   // ← TAMBAHKAN
+                            "Part" -> onStokPartClick()
+                            "Lainnya" -> onNavigateToLainnya()
                         }
                     })
                 }

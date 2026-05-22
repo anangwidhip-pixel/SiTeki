@@ -33,7 +33,8 @@ import com.example.sitekiver01.ui.theme.*
 
 @Composable
 fun LainnyaScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateToKatalog: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -70,7 +71,7 @@ fun LainnyaScreen(
                 MenuItem("Teknisi", Icons.Default.Person, GlassAccentCyan, "Manajemen Teknisi"),
                 MenuItem("Travo", Icons.Default.ElectricBolt, Color(0xFFFF9800), "Monitoring Trafo"),
                 MenuItem("Lemburan", Icons.Default.AccessTime, Color(0xFF4CAF50), "Pengajuan Lembur"),
-                MenuItem("Menu 4", Icons.Default.Build, GlassAccentPurple, "Fitur Tambahan"),
+                MenuItem("Katalog", Icons.Default.MenuBook, GlassAccentCyan, "Katalog Produk"),
                 MenuItem("Menu 5", Icons.Default.Star, Color(0xFF9C27B0), "Penilaian"),
                 MenuItem("Menu 6", Icons.Default.Info, Color(0xFF00BCD4), "Informasi"),
                 MenuItem("Menu 7", Icons.Default.Favorite, Color(0xFFFF5722), "Favorit"),
@@ -79,7 +80,11 @@ fun LainnyaScreen(
 
             items(menuItems) { item ->
                 NeonMenuCard(item) {
-                    Toast.makeText(context, "Membuka ${item.title}", Toast.LENGTH_SHORT).show()
+                    if (item.title == "Katalog") {
+                        onNavigateToKatalog()
+                    } else {
+                        Toast.makeText(context, "Membuka ${item.title}", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
