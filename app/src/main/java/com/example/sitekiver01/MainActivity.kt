@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.window.Dialog
 import com.example.sitekiver01.screens.*
+import com.example.sitekiver01.ui.components.SciFiBackground
 import com.example.sitekiver01.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -253,18 +254,10 @@ fun AppNavigation() {
 
     val showBottomBar = currentScreen in listOf(Screen.Dashboard, Screen.QRScanner)
 
-    Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
-        // Orbs Background
-        val infiniteTransition = rememberInfiniteTransition(label = "orbs")
-        val orbOffset by infiniteTransition.animateFloat(
-            initialValue = 0f, targetValue = 100f,
-            animationSpec = infiniteRepeatable(animation = tween(8000, easing = LinearEasing), repeatMode = RepeatMode.Reverse),
-            label = "orbOffset"
-        )
-        Box(modifier = Modifier.size(400.dp).offset(x = (-100).dp + orbOffset.dp, y = (-100).dp + (orbOffset/2).dp)
-            .background(GlassAccentPurple.copy(alpha = 0.15f), CircleShape).blur(100.dp))
-        Box(modifier = Modifier.size(350.dp).align(Alignment.BottomEnd).offset(x = 100.dp - orbOffset.dp, y = 100.dp - (orbOffset/3).dp)
-            .background(GlassAccentCyan.copy(alpha = 0.12f), CircleShape).blur(80.dp))
+    // ==================== SCIFI BACKGROUND (NEW) ====================
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Replace Orbs Background dengan SciFiBackground Component
+        SciFiBackground()
 
         Scaffold(
             containerColor = Color.Transparent,
@@ -655,9 +648,9 @@ fun CustomBottomNavigation(
 fun NavItem(icon: Any, label: String, isSelected: Boolean, hasBadge: Boolean = false, onClick: () -> Unit) {
     val animatedColor by animateColorAsState(targetValue = if (isSelected) GlassAccentCyan else Color.White.copy(alpha = 0.4f), animationSpec = tween(300), label = "color")
     val animatedScale by animateFloatAsState(targetValue = if (isSelected) 1.2f else 1f, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow), label = "scale")
-    Column(modifier = Modifier.width(64.dp).clip(RoundedCornerShape(20.dp)).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+    Column(modifier = Modifier.width(64.dp).clip(RoundedCornerShape(20.dp)).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
         BadgedBox(badge = { if (hasBadge) { Box(modifier = Modifier.size(8.dp).background(Color.Red, CircleShape)) } }) {
-            Icon(imageVector = when (icon) { is ImageVector -> icon else -> Icons.AutoMirrored.Rounded.HelpOutline }, contentDescription = label, tint = animatedColor, modifier = Modifier.size(26.dp).graphicsLayer { scaleX = animatedScale; scaleY = animatedScale })
+            Icon(imageVector = when (icon) { is ImageVector -> icon else -> Icons.AutoMirrored.Rounded.HelpOutline }, contentDescription = label, tint = animatedColor, modifier = Modifier.size(26.dp).graphicsLayer(scaleX = animatedScale, scaleY = animatedScale))
         }
         Spacer(modifier = Modifier.height(4.dp))
         AnimatedVisibility(visible = isSelected, enter = fadeIn() + expandVertically(expandFrom = Alignment.Top), exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top)) {
@@ -999,133 +992,72 @@ fun MaintenanceTable(data: List<MaintenanceTask>, onActionClick: (MaintenanceTas
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.AutoMirrored.Rounded.ListAlt, null, tint = GlassAccentCyan, modifier = Modifier.size(24.dp))
-                    Spacer(modifier = Modifier.width(16.dp))
+                Column {
                     Text(
-                        text = if (data.isEmpty()) "Tidak ada jadwal perawatan"
-                        else "${data.size} Mesin Perlu Dicek",
-                        color = Color.White,
+                        text = if (data.isEmpty()) "Tidak ada jadwal" else "Jadwal Perawatan",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
+                        fontSize = 14.sp,
+                        color = Color.White
                     )
+                    if (data.isNotEmpty()) {
+                        Text(
+                            text = "${data.size} items",
+                            fontSize = 11.sp,
+                            color = GlassTextMuted
+                        )
+                    }
                 }
-                val rotation by animateFloatAsState(targetValue = if (isExpanded) 180f else 0f, label = "rotation")
-                Icon(Icons.Default.KeyboardArrowDown, null, tint = GlassAccentCyan, modifier = Modifier.graphicsLayer { rotationZ = rotation })
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = GlassAccentCyan,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
 
-        AnimatedVisibility(
-            visible = isExpanded && data.isNotEmpty(),
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
-        ) {
+        if (isExpanded && data.isNotEmpty()) {
             Surface(
-                modifier = Modifier.fillMaxWidth().heightIn(max = 350.dp),
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                color = Color.White.copy(alpha = 0.03f),
+                color = GlassSurface,
                 border = BorderStroke(1.dp, GlassBorder)
             ) {
-                Column(Modifier.fillMaxSize()) {
-                    Row(
-                        Modifier.fillMaxWidth()
-                            .background(Color.White.copy(alpha = 0.08f))
-                            .padding(horizontal = 16.dp, vertical = 10.dp)
-                    ) {
-                        Text(
-                            "IDENTITAS MESIN",
-                            Modifier.weight(1f),
-                            color = GlassAccentCyan,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 11.sp,
-                            fontFamily = OrbitronFontFamily
-                        )
-                        Text(
-                            "AKSI",
-                            Modifier.width(90.dp),
-                            color = GlassAccentCyan,
-                            fontWeight = FontWeight.ExtraBold,
-                            textAlign = TextAlign.Center,
-                            fontSize = 11.sp,
-                            fontFamily = OrbitronFontFamily
-                        )
-                    }
-
-                    LazyColumn(Modifier.fillMaxWidth(), contentPadding = PaddingValues(bottom = 12.dp)) {
-                        itemsIndexed(data) { index, task ->
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    data.forEach { task ->
+                        Surface(
+                            onClick = { onActionClick(task) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color.White.copy(alpha = 0.05f),
+                            border = BorderStroke(1.dp, GlassBorder)
+                        ) {
                             Row(
-                                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Column(Modifier.weight(1f)) {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = task.namaDisplay,
-                                        color = Color.White,
+                                        task.namaAsli,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
+                                        fontSize = 12.sp,
+                                        color = Color.White
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
-
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Surface(
-                                            color = GlassAccentCyan.copy(alpha = 0.1f),
-                                            shape = RoundedCornerShape(4.dp)
-                                        ) {
-                                            Text(
-                                                text = task.jenis,
-                                                color = GlassAccentCyan,
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-                                        }
-
-                                        Spacer(Modifier.width(8.dp))
-
-                                        val periodeLabel = when (task.status) {
-                                            "B" -> "Bulanan (B)"
-                                            "M" -> "Mingguan (M)"
-                                            else -> "Bulanan (B)"
-                                        }
-
-                                        Text(
-                                            text = periodeLabel,
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = if (task.status == "M") Color(0xFFFFC107) else GlassAccentCyan,
-                                            modifier = Modifier
-                                                .background(
-                                                    (if (task.status == "M") Color(0xFFFFC107) else GlassAccentCyan)
-                                                        .copy(alpha = 0.15f),
-                                                    RoundedCornerShape(4.dp)
-                                                )
-                                                .padding(horizontal = 6.dp, vertical = 1.dp)
-                                        )
-                                    }
+                                    Text(
+                                        task.tanggal,
+                                        fontSize = 10.sp,
+                                        color = GlassTextMuted
+                                    )
                                 }
-
-                                Button(
-                                    onClick = { onActionClick(task) },
-                                    modifier = Modifier.width(90.dp).height(36.dp),
-                                    contentPadding = PaddingValues(0.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = GlassAccentCyan),
-                                    shape = RoundedCornerShape(10.dp)
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.Build, null, tint = Color.Black, modifier = Modifier.size(14.dp))
-                                        Spacer(Modifier.width(6.dp))
-                                        Text("BUKA", color = Color.Black, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp)
-                                    }
-                                }
-                            }
-
-                            if (index < data.size - 1) {
-                                HorizontalDivider(
-                                    Modifier.padding(horizontal = 16.dp),
-                                    thickness = 0.5.dp,
-                                    color = GlassBorder
+                                Text(
+                                    task.status,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = GlassAccentCyan
                                 )
                             }
                         }
@@ -1135,137 +1067,3 @@ fun MaintenanceTable(data: List<MaintenanceTask>, onActionClick: (MaintenanceTas
         }
     }
 }
-
-@Composable
-fun MachineCard(orders: List<String>, buttonText: String, onButtonClick: (Int) -> Unit = {}) {
-    val pagerState = rememberPagerState(pageCount = { orders.size })
-    val isPreview = LocalInspectionMode.current
-    LaunchedEffect(Unit) { if (!isPreview) { while (true) { delay(5000); pagerState.animateScrollToPage((pagerState.currentPage + 1) % orders.size, animationSpec = tween(1000)) } } }
-    val density = LocalDensity.current
-    val btnW = 158.dp; val btnH = 29.dp; val cardR = 32.dp
-    val btnWidthPx = with(density) { btnW.toPx() }; val btnHeightPx = with(density) { btnH.toPx() }; val cardRadiusPx = with(density) { cardR.toPx() }; val gapPx = with(density) { 8.dp.toPx() }; val br = btnHeightPx / 2
-    Box(modifier = Modifier.fillMaxWidth().height(160.dp)) {
-        val notchedShape = GenericShape { size, _ ->
-            if (size.width > 0 && size.height > 0) {
-                val w = size.width; val h = size.height; val r = cardRadiusPx; val notchTop = h - btnHeightPx - gapPx; val notchLeft = w - btnWidthPx - gapPx
-                moveTo(r, 0f); lineTo(w - r, 0f); arcTo(Rect(w - 2 * r, 0f, w, 2 * r), 270f, 90f, false); lineTo(w, notchTop - br); arcTo(Rect(w - 2 * br, notchTop - 2 * br, w, notchTop), 0f, 90f, false); lineTo(notchLeft + br, notchTop); arcTo(Rect(notchLeft, notchTop, notchLeft + 2 * br, notchTop + 2 * br), 270f, -90f, false); lineTo(notchLeft, h - br); arcTo(Rect(notchLeft - 2 * br, h - 2 * br, notchLeft, h), 0f, 90f, false); lineTo(r, h); arcTo(Rect(0f, h - 2 * r, 2 * r, h), 90f, 90f, false); lineTo(0f, r); arcTo(Rect(0f, 0f, 2 * r, 2 * r), 180f, 90f, false); close()
-            }
-        }
-        Surface(modifier = Modifier.fillMaxSize(), shape = notchedShape, color = GlassSurface) {
-            Row(modifier = Modifier.fillMaxSize().padding(start = 24.dp, end = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(painter = painterResource(id = R.drawable.mesin), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(86.dp))
-                Spacer(modifier = Modifier.width(20.dp)); Box(modifier = Modifier.width(1.5.dp).height(64.dp).background(Color.White.copy(alpha = 0.2f))); Spacer(modifier = Modifier.width(20.dp))
-                HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { page ->
-                    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) { Text(text = orders[page], fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis) }
-                }
-            }
-        }
-        Button(onClick = { onButtonClick(pagerState.currentPage) }, modifier = Modifier.align(Alignment.BottomEnd).width(btnW).height(btnH), shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent), contentPadding = PaddingValues(0.dp)) {
-            Box(modifier = Modifier.fillMaxSize().background(brush = Brush.horizontalGradient(colors = listOf(GlassAccentCyan, Color(0xFF0054B2))), shape = CircleShape), contentAlignment = Alignment.Center) { Text(text = buttonText, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 10.sp) }
-        }
-    }
-}
-
-data class CategoryItem(val title: String, val icon: Any)
-
-@Composable
-fun CategorySection(
-    onPerawatanClick: () -> Unit,
-    onStangClick: () -> Unit,
-    onKPIClick: () -> Unit,
-    onListrikClick: () -> Unit,
-    onLapKerjaClick: () -> Unit,
-    onStokPartClick: () -> Unit,
-    onOrderKerjaClick: () -> Unit,
-    onNavigateToLainnya: () -> Unit
-) {
-    val items = remember { listOf(
-        CategoryItem("Perawatan", R.drawable.perawatan),
-        CategoryItem("Laporan Kerja", R.drawable.laporan),
-        CategoryItem("KPI", R.drawable.kpi),
-        CategoryItem("Listrik", Icons.Default.ElectricBolt),
-        CategoryItem("Stang", R.drawable.stang),
-        CategoryItem("Order Kerja", R.drawable.wo),
-        CategoryItem("Part", R.drawable.part),
-        CategoryItem("Lainnya", Icons.Default.Apps)
-    )}
-
-    Column(modifier = Modifier.fillMaxWidth().background(Color.Transparent)
-        .padding(start = 24.dp, end = 24.dp, top = 0.dp, bottom = 20.dp)
-    ) {
-        Text(text = "Kategori", fontSize = 24.sp, fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 20.dp), color = Color.White)
-
-        items.chunked(4).forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                row.forEach { item ->
-                    CategoryCard(item = item, modifier = Modifier.weight(1f), onClick = {
-                        when (item.title) {
-                            "Perawatan" -> onPerawatanClick()
-                            "Laporan Kerja" -> onLapKerjaClick()
-                            "KPI" -> onKPIClick()
-                            "Listrik" -> onListrikClick()
-                            "Stang" -> onStangClick()
-                            "Order Kerja" -> onOrderKerjaClick()
-                            "Part" -> onStokPartClick()
-                            "Lainnya" -> onNavigateToLainnya()
-                        }
-                    })
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun CategoryCard(item: CategoryItem, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
-    Column(modifier = modifier.clickable { onClick() }, horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(modifier = Modifier.aspectRatio(1f).fillMaxWidth().background(brush = Brush.verticalGradient(colors = listOf(Color.White.copy(alpha = 0.05f), Color.White.copy(alpha = 0.1f))), shape = RoundedCornerShape(28.dp)).padding(12.dp), contentAlignment = Alignment.Center) { when (val icon = item.icon) { is ImageVector -> Icon(icon, null, tint = GlassAccentCyan, modifier = Modifier.size(36.dp)); is Int -> Icon(painterResource(id = icon), null, tint = Color.Unspecified, modifier = Modifier.size(36.dp)) } }
-        Text(text = item.title, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp), color = Color.White)
-    }
-}
-
-@Composable
-fun NewsSection() {
-    val newsItems = remember { listOf(NewsItem("JADWAL LIBUR LEBARAN", "Semarang, 07 Maret 2026 - PT Pabrik Besi Beton Raja Besi mengumumk...", "07 Mar 2026", R.drawable.lebaran1), NewsItem("SELAMAT MERAYAKAN HARI RA...", "Semarang, 09 Maret 2026 - PT Pabrik Besi Beton Raja Besi mengucap...", "09 Mar 2026", R.drawable.lebaran1), NewsItem("PESAN K3 UNTUK KAR...", "Saat melakukan mudik lebaran pastikan kond...", "09 Mar 2026", R.drawable.pk3), NewsItem("PASTIKAN LOKASI KERJA DALAM KON...", "Before starting the long holiday, make sure the con...", "10 Mar 2026", R.drawable.lokerja), NewsItem("TIPS MERAWAT MESIN", "Simak tips singkat dari mekanik ahli kami agar mesin tetap awet...", "10 Mar 2026", R.drawable.servis)) }
-    val pagerState = rememberPagerState(pageCount = { newsItems.size })
-    val isPreview = LocalInspectionMode.current
-    LaunchedEffect(Unit) { if (!isPreview) { while (true) { delay(4000); pagerState.animateScrollToPage((pagerState.currentPage + 1) % newsItems.size) } } }
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
-        Text(text = "Berita", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp), color = Color.White)
-        HorizontalPager(state = pagerState, contentPadding = PaddingValues(end = 64.dp), pageSpacing = 16.dp, modifier = Modifier.fillMaxWidth()) { page -> NewsCard(newsItems[page]) }
-    }
-}
-
-@Composable
-fun NewsCard(item: NewsItem) {
-    Card(modifier = Modifier.fillMaxWidth().height(340.dp), shape = RoundedCornerShape(32.dp), colors = CardDefaults.cardColors(containerColor = GlassSurface)) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Box(modifier = Modifier.fillMaxWidth().height(180.dp).padding(12.dp).clip(RoundedCornerShape(24.dp)).background(Color.White.copy(alpha = 0.1f))) { Image(painter = painterResource(id = item.image), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) { Text(text = item.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = Color.White); Spacer(modifier = Modifier.height(8.dp)); Text(text = item.description, fontSize = 13.sp, color = GlassTextMuted, maxLines = 2, overflow = TextOverflow.Ellipsis); Spacer(modifier = Modifier.weight(1f)); Text(text = item.date, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White); Spacer(modifier = Modifier.height(16.dp)) }
-        }
-    }
-}
-
-@Composable
-fun CarouselBanner() {
-    val imageResources = listOf(R.drawable.slide1, R.drawable.slide2, R.drawable.slide3, R.drawable.slide4, R.drawable.slide5)
-    val actualImageCount = imageResources.size
-    val pagerState = rememberPagerState(initialPage = Int.MAX_VALUE / 2, pageCount = { Int.MAX_VALUE })
-    val isPreview = LocalInspectionMode.current
-    LaunchedEffect(Unit) { if (!isPreview) { while (true) { delay(3000); pagerState.animateScrollToPage(pagerState.currentPage + 1) } } }
-    Box(contentAlignment = Alignment.BottomCenter) {
-        HorizontalPager(state = pagerState, contentPadding = PaddingValues(horizontal = 16.dp), pageSpacing = (-14).dp) { page ->
-            val actualIndex = page % actualImageCount; val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction).absoluteValue
-            Card(modifier = Modifier.fillMaxWidth().height(218.dp).graphicsLayer { val scale = lerp(0.85f, 1f, 1f - pageOffset.coerceIn(0f, 1f)); scaleX = scale; scaleY = scale; alpha = lerp(0.6f, 1f, 1f - pageOffset.coerceIn(0f, 1f)) }, shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.1f))) { Image(painter = painterResource(id = imageResources[actualIndex]), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
-        }
-        Row(modifier = Modifier.padding(bottom = 12.dp)) { repeat(actualImageCount) { i -> val active = (pagerState.currentPage % actualImageCount) == i; Box(modifier = Modifier.padding(4.dp).height(6.dp).width(if (active) 24.dp else 12.dp).clip(CircleShape).background(if (active) GlassAccentCyan else Color.White.copy(alpha = 0.3f))) } }
-    }
-}
-
-@ComposePreview(showBackground = true)
-@Composable
-fun DashboardScreenPreview() { SiTekiVer01Theme { AppNavigation() } }
