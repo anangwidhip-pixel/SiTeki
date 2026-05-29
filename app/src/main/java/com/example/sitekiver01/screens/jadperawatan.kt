@@ -1,7 +1,6 @@
 package com.example.sitekiver01.screens
 
 import android.util.Log
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,7 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -25,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sitekiver01.ui.theme.*
 import com.example.sitekiver01.OrbitronFontFamily
+import com.example.sitekiver01.components.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -121,28 +121,9 @@ fun JadPerawatanScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
-        // Animated Background Orbs
-        val infiniteTransition = rememberInfiniteTransition(label = "orbs")
-        val orbOffset by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 100f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(8000, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            ), label = "orbMove"
-        )
 
-        Box(modifier = Modifier
-            .size(400.dp)
-            .offset(x = (-100).dp + orbOffset.dp, y = (-100).dp + (orbOffset/2).dp)
-            .background(GlassAccentPurple.copy(alpha = 0.15f), CircleShape)
-            .blur(100.dp))
-        Box(modifier = Modifier
-            .size(350.dp)
-            .align(Alignment.BottomEnd)
-            .offset(x = 100.dp - orbOffset.dp, y = 100.dp - (orbOffset/3).dp)
-            .background(GlassAccentCyan.copy(alpha = 0.12f), CircleShape)
-            .blur(80.dp))
+        // PONDASI UTAMA: Background Mesh Grid Animasi Global
+        SciFiBackground()
 
         JadPerawatanContent(
             selectedMonth = selectedMonth,
@@ -211,108 +192,121 @@ fun JadPerawatanContent(
                         color = Color.White,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 18.sp,
-                        fontFamily = OrbitronFontFamily
+                        fontFamily = OrbitronFontFamily,
+                        letterSpacing = 1.sp
                     )
                 }
             }
         }
     ) { innerPadding ->
-        Column(modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 20.dp)) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Spacer(Modifier.height(12.dp))
+            Text("PENCARIAN DATA METRIC", color = SciFiCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = OrbitronFontFamily)
 
-            Spacer(Modifier.height(20.dp))
-            Text("PENCARIAN DATA", color = GlassAccentCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Spacer(Modifier.height(8.dp))
+            // PANEL FILTER BULAN DAN TAHUN (GLASSMORPHIC)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                color = SciFiGlass,
+                border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
+            ) {
+                Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        Surface(
+                            modifier = Modifier
+                                .height(42.dp)
+                                .fillMaxWidth()
+                                .clickable { onMonthClick() },
+                            border = BorderStroke(1.dp, SciFiBorderLight),
+                            shape = RoundedCornerShape(21.dp),
+                            color = Color.White.copy(alpha = 0.03f)
+                        ) {
+                            Row(modifier = Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = months[selectedMonth],
+                                    modifier = Modifier.weight(1f),
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    maxLines = 1
+                                )
+                                Icon(Icons.Default.ArrowDropDown, null, tint = SciFiTextMuted, modifier = Modifier.size(20.dp))
+                            }
+                        }
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(modifier = Modifier.weight(1f)) {
-                    Surface(
-                        modifier = Modifier
-                            .height(40.dp)
-                            .fillMaxWidth()
-                            .clickable { onMonthClick() },
-                        border = BorderStroke(1.dp, GlassBorder),
-                        shape = RoundedCornerShape(20.dp),
-                        color = Color.White.copy(alpha = 0.05f)
-                    ) {
-                        Row(modifier = Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = months[selectedMonth],
-                                modifier = Modifier.weight(1f),
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                maxLines = 1
-                            )
-                            Icon(Icons.Default.ArrowDropDown, null, tint = GlassTextMuted, modifier = Modifier.size(20.dp))
+                        DropdownMenu(
+                            expanded = expandedMonth,
+                            onDismissRequest = { onMonthDismiss() },
+                            modifier = Modifier.background(Color(0xFF0F172A)).border(1.dp, SciFiBorderLight)
+                        ) {
+                            months.forEachIndexed { index, name ->
+                                DropdownMenuItem(
+                                    text = { Text(name, fontSize = 12.sp, color = Color.White) },
+                                    onClick = { onMonthSelect(index) }
+                                )
+                            }
                         }
                     }
 
-                    DropdownMenu(
-                        expanded = expandedMonth,
-                        onDismissRequest = { onMonthDismiss() },
-                        modifier = Modifier.background(Color(0xFF1A1A1A)).border(1.dp, GlassBorder)
-                    ) {
-                        months.forEachIndexed { index, name ->
-                            DropdownMenuItem(
-                                text = { Text(name, fontSize = 12.sp, color = Color.White) },
-                                onClick = { onMonthSelect(index) }
-                            )
-                        }
-                    }
-                }
-
-                Box(modifier = Modifier.width(100.dp)) {
-                    Surface(
-                        modifier = Modifier
-                            .height(40.dp)
-                            .fillMaxWidth(),
-                        border = BorderStroke(1.dp, GlassBorder),
-                        shape = RoundedCornerShape(20.dp),
-                        color = Color.White.copy(alpha = 0.05f)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(text = selectedYear.toString(), color = Color.White, fontSize = 12.sp)
+                    Box(modifier = Modifier.width(100.dp)) {
+                        Surface(
+                            modifier = Modifier
+                                .height(42.dp)
+                                .fillMaxWidth(),
+                            border = BorderStroke(1.dp, SciFiBorderLight),
+                            shape = RoundedCornerShape(21.dp),
+                            color = Color.White.copy(alpha = 0.03f)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(text = selectedYear.toString(), color = Color.White, fontSize = 12.sp, fontFamily = OrbitronFontFamily)
+                            }
                         }
                     }
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(4.dp))
 
+            // LEGENDA INDIKATOR PLAN & ACTUAL
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                LegendItem(GlassAccentGreen, "Plan (M)")
-                LegendItem(Color(0xFF2563EB), "Plan (B)")
-                Text("✓ Actual", color = GlassAccentGreen, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                LegendItem(Color(0xFF10B981), "Plan (M)") // SciFiStatusM Green
+                LegendItem(Color(0xFF2563EB), "Plan (B)") // SciFiBlue
+                Text("✓ Actual", color = Color(0xFF10B981), fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = OrbitronFontFamily)
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(4.dp))
 
             Row(modifier = Modifier.fillMaxWidth()) {
                 Surface(
-                    color = GlassAccentCyan.copy(alpha = 0.1f),
+                    color = SciFiCyan.copy(alpha = 0.1f),
                     shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
-                    border = BorderStroke(1.dp, GlassAccentCyan.copy(alpha = 0.3f))
+                    border = BorderStroke(1.dp, SciFiCyan.copy(alpha = 0.3f))
                 ) {
                     Text(
                         "DATA JADWAL PERAWATAN",
-                        color = GlassAccentCyan,
+                        color = SciFiCyan,
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp,
+                        fontFamily = OrbitronFontFamily,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }
             }
 
+            // STRUKTUR UTAMA TABEL JADWAL (GLASSMORPHIC BOX)
             Surface(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                color = GlassSurface,
-                border = BorderStroke(1.dp, GlassBorder),
+                modifier = modifier.weight(1f).fillMaxWidth(),
+                color = SciFiGlass,
+                border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent))),
                 shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp, topEnd = 12.dp)
             ) {
                 if (isLoading) {
-                    Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = GlassAccentCyan) }
+                    Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = SciFiCyan) }
                 } else if (errorMessage != null) {
                     Box(Modifier.fillMaxSize().padding(16.dp), Alignment.Center) {
-                        Text(errorMessage, color = Color.Red, textAlign = TextAlign.Center, fontSize = 12.sp)
+                        Text(errorMessage, color = Color(0xFFC23B22), textAlign = TextAlign.Center, fontSize = 12.sp)
                     }
                 } else {
                     MaintenanceStickyTable(machinesList, actualRecords, selectedMonth, selectedYear, onMachineClick, onCellClick)
@@ -327,7 +321,7 @@ fun JadPerawatanContent(
 fun LegendItem(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Box(modifier = Modifier.size(12.dp).background(color, RoundedCornerShape(2.dp)))
-        Text(label, color = Color.White, fontSize = 11.sp)
+        Text(label, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -353,16 +347,16 @@ fun MaintenanceStickyTable(
     val dataRowHeight = 40.dp
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // HEADER ROW 1 (Dates)
-        Row(modifier = Modifier.fillMaxWidth().background(GlassAccentCyan.copy(alpha = 0.1f))) {
+        // HEADER ROW 1 (Dates / Hari)
+        Row(modifier = Modifier.fillMaxWidth().background(SciFiCyan.copy(alpha = 0.08f))) {
             Box(
                 modifier = Modifier
                     .size(nameColumnWidth, headerHeight)
-                    .border(0.5.dp, GlassBorder)
+                    .border(0.5.dp, SciFiBorderLight.copy(alpha = 0.3f))
                     .padding(horizontal = 8.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
-                Text("Mesin / Tanggal", color = GlassAccentCyan, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                Text("Mesin / Tanggal", color = SciFiCyan, fontWeight = FontWeight.Bold, fontSize = 11.sp, fontFamily = OrbitronFontFamily)
             }
 
             Row(modifier = Modifier.horizontalScroll(scrollState)) {
@@ -373,57 +367,57 @@ fun MaintenanceStickyTable(
                     val isToday = isCurrentMonth && i == todayDate
 
                     val bgColor = when {
-                        isToday -> Color(0xFFFFEB3B).copy(alpha = 0.8f)
-                        isSun || isHoliday -> Color(0xFFB91C1C).copy(alpha = 0.6f)
-                        isSat -> Color(0xFFF97316).copy(alpha = 0.6f)
+                        isToday -> SciFiCyan.copy(alpha = 0.35f)
+                        isSun || isHoliday -> Color(0xFFC23B22).copy(alpha = 0.4f) // SciFiHoliday Red
+                        isSat -> Color(0xFFD97706).copy(alpha = 0.4f) // SciFiSaturday Amber
                         else -> Color.Transparent
                     }
-                    val textColor = if (isToday) Color.Black else Color.White
+                    val textColor = Color.White
 
                     Box(
                         modifier = Modifier
                             .width(dayCellWidth)
                             .height(headerHeight)
                             .background(bgColor)
-                            .border(0.5.dp, GlassBorder),
+                            .border(0.5.dp, SciFiBorderLight.copy(alpha = 0.3f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(getDayNameShort(i, month, year), color = textColor.copy(alpha = 0.7f), fontSize = 9.sp)
-                            Text(i.toString(), color = textColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text(getDayNameShort(i, month, year), color = if (isToday) SciFiCyan else textColor.copy(alpha = 0.6f), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            Text(i.toString(), color = if (isToday) SciFiCyan else textColor, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = OrbitronFontFamily)
                         }
                     }
                 }
             }
         }
 
-        // HEADER ROW 2 (P/A)
-        Row(modifier = Modifier.fillMaxWidth().background(GlassAccentCyan.copy(alpha = 0.05f))) {
+        // HEADER ROW 2 (P / A Plan & Actual Channels)
+        Row(modifier = Modifier.fillMaxWidth().background(SciFiCyan.copy(alpha = 0.03f))) {
             Box(
                 modifier = Modifier
                     .size(nameColumnWidth, 24.dp)
-                    .border(0.5.dp, GlassBorder),
+                    .border(0.5.dp, SciFiBorderLight.copy(alpha = 0.3f)),
                 contentAlignment = Alignment.CenterStart
             ) {}
 
             Row(modifier = Modifier.horizontalScroll(scrollState)) {
                 for (i in 1..daysInMonth) {
                     Row(modifier = Modifier.width(dayCellWidth)) {
-                        Box(modifier = Modifier.weight(1f).height(24.dp).border(0.5.dp, GlassBorder), contentAlignment = Alignment.Center) {
-                            Text("P", color = GlassAccentCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Box(modifier = Modifier.weight(1f).height(24.dp).border(0.5.dp, SciFiBorderLight.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
+                            Text("P", color = SciFiCyan.copy(alpha = 0.8f), fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = OrbitronFontFamily)
                         }
-                        Box(modifier = Modifier.weight(1f).height(24.dp).border(0.5.dp, GlassBorder), contentAlignment = Alignment.Center) {
-                            Text("A", color = GlassAccentCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Box(modifier = Modifier.weight(1f).height(24.dp).border(0.5.dp, SciFiBorderLight.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
+                            Text("A", color = Color(0xFF10B981), fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = OrbitronFontFamily)
                         }
                     }
                 }
             }
         }
 
-        // BODY ROWS
+        // BODY ROWS (Daftar Mesin Dinamis)
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             itemsIndexed(machines) { index, machine ->
-                val rowBgColor = if (index % 2 != 0) Color.White.copy(alpha = 0.02f) else Color.Transparent
+                val rowBgColor = if (index % 2 != 0) Color.White.copy(alpha = 0.01f) else Color.Transparent
 
                 Row(modifier = Modifier
                     .fillMaxWidth()
@@ -432,7 +426,7 @@ fun MaintenanceStickyTable(
                     Box(
                         modifier = Modifier
                             .size(nameColumnWidth, dataRowHeight)
-                            .border(0.5.dp, GlassBorder)
+                            .border(0.5.dp, SciFiBorderLight.copy(alpha = 0.3f))
                             .clickable { onMachineClick(machine) }
                             .padding(horizontal = 8.dp),
                         contentAlignment = Alignment.CenterStart
@@ -452,17 +446,17 @@ fun MaintenanceStickyTable(
                             }
 
                             val pBgColor = when (status) {
-                                "M" -> GlassAccentGreen
-                                "B" -> Color(0xFF2563EB)
+                                "M" -> Color(0xFF10B981) // SciFiStatusM
+                                "B" -> Color(0xFF2563EB) // SciFiBlue
                                 else -> Color.Transparent
                             }
 
                             val aBgColor = when (actualMark) {
-                                "✓✓" -> Color(0xFF2563EB).copy(alpha = 0.2f)
-                                "✓" -> GlassAccentGreen.copy(alpha = 0.2f)
+                                "✓✓" -> Color(0xFF2563EB).copy(alpha = 0.15f)
+                                "✓" -> Color(0xFF10B981).copy(alpha = 0.15f)
                                 else -> Color.Transparent
                             }
-                            val aTextColor = if (actualMark == "✓✓") Color(0xFF2563EB) else GlassAccentGreen
+                            val aTextColor = if (actualMark == "✓✓") Color(0xFF2563EB) else Color(0xFF10B981)
 
                             Row(modifier = Modifier
                                 .width(dayCellWidth)
@@ -474,7 +468,7 @@ fun MaintenanceStickyTable(
                                         .weight(1f)
                                         .fillMaxHeight()
                                         .background(pBgColor)
-                                        .border(0.5.dp, GlassBorder),
+                                        .border(0.5.dp, SciFiBorderLight.copy(alpha = 0.2f)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (status.isNotEmpty()) {
@@ -486,7 +480,7 @@ fun MaintenanceStickyTable(
                                         .weight(1f)
                                         .fillMaxHeight()
                                         .background(aBgColor)
-                                        .border(0.5.dp, GlassBorder),
+                                        .border(0.5.dp, SciFiBorderLight.copy(alpha = 0.2f)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (actualMark.isNotEmpty()) {
@@ -631,7 +625,9 @@ fun getDayNameShort(day: Int, month: Int, year: Int): String {
 }
 
 fun isSunday(day: Int, month: Int, year: Int): Boolean = Calendar.getInstance().apply { set(year, month, day) }.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY
-fun isSaturday(day: Int, month: Int, year: Int): Boolean = Calendar.getInstance().apply { set(year, month, day) }.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY
+
+// PERBAIKAN BUG: Mengubah rujukan yang salah dari Calendar.SUNDAY menjadi Calendar.SATURDAY
+fun isSaturday(day: Int, month: Int, year: Int): Boolean = Calendar.getInstance().apply { set(year, month, day) }.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY
 
 fun isIndonesianHoliday(day: Int, month: Int, year: Int): Boolean {
     val holidays2024 = mapOf(0 to listOf(1), 1 to listOf(8, 10), 2 to listOf(11, 29, 31), 3 to listOf(10, 11), 4 to listOf(1, 9, 23), 5 to listOf(1, 17), 6 to listOf(7), 7 to listOf(17), 8 to listOf(16), 11 to listOf(25))

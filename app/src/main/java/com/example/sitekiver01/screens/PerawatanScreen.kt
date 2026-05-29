@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -38,6 +39,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
+import java.text.SimpleDateFormat
 import java.util.*
 
 // Fungsi pembantu global untuk mencocokkan tanggal secara fleksibel (menangani 1/1 vs 01/01)
@@ -129,28 +131,9 @@ fun PerawatanScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
-        // Animated Background Orbs
-        val infiniteTransition = rememberInfiniteTransition(label = "orbs")
-        val orbOffset by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 100f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(8000, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            ), label = "orbMove"
-        )
 
-        Box(modifier = Modifier
-            .size(400.dp)
-            .offset(x = (-100).dp + orbOffset.dp, y = (-100).dp + (orbOffset/2).dp)
-            .background(GlassAccentPurple.copy(alpha = 0.15f), CircleShape)
-            .blur(100.dp))
-        Box(modifier = Modifier
-            .size(350.dp)
-            .align(Alignment.BottomEnd)
-            .offset(x = 100.dp - orbOffset.dp, y = 100.dp - (orbOffset/3).dp)
-            .background(GlassAccentCyan.copy(alpha = 0.12f), CircleShape)
-            .blur(80.dp))
+        // PONDASI UTAMA: Background Mesh Grid Animasi Global
+        SciFiBackground()
 
         Scaffold(
             containerColor = Color.Transparent,
@@ -169,11 +152,12 @@ fun PerawatanScreen(
                         ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = Color.White) }
                         Spacer(Modifier.width(16.dp))
                         Text(
-                            "DAFTAR KATALOG",
+                            "PERAWATAN MESIN",
                             color = Color.White,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
-                            fontFamily = OrbitronFontFamily
+                            fontFamily = OrbitronFontFamily,
+                            letterSpacing = 1.sp
                         )
                     }
                 }
@@ -188,7 +172,7 @@ fun PerawatanScreen(
             ) {
                 if (isLoading && !isRefreshing) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = GlassAccentCyan)
+                        CircularProgressIndicator(color = SciFiCyan)
                     }
                 } else {
                     PerawatanContent(
@@ -208,69 +192,69 @@ fun PerawatanContent(
     actualRecords: List<ActualRecord>,
     onCellClick: (String, String, String) -> Unit
 ) {
-    val todayCal = Calendar.getInstance()
-    val todayKey = String.format(Locale.US, "%02d/%02d/%d",
-        todayCal.get(Calendar.DAY_OF_MONTH), todayCal.get(Calendar.MONTH) + 1, todayCal.get(Calendar.YEAR))
+    // PERBAIKAN LOCALE WARNING: Membungkus Date Formatter ke dalam remember
+    val todayKey = remember {
+        val todayCal = Calendar.getInstance()
+        String.format(Locale.US, "%02d/%02d/%d",
+            todayCal.get(Calendar.DAY_OF_MONTH), todayCal.get(Calendar.MONTH) + 1, todayCal.get(Calendar.YEAR))
+    }
+    val currentDay = remember { Calendar.getInstance().get(Calendar.DAY_OF_MONTH) }
+    val currentMonth = remember { Calendar.getInstance().get(Calendar.MONTH) }
+    val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
 
     // ==================== PERLU DIRAWAT HARI INI ====================
-    val todayTasks = machinesList.filter { machine ->
-        // 1. Harus punya jadwal hari ini
-        val status = getMaintenanceStatus(machine.second, todayCal.get(Calendar.DAY_OF_MONTH),
-            todayCal.get(Calendar.MONTH), todayCal.get(Calendar.YEAR))
-        if (status.isEmpty()) return@filter false
+    val todayTasks = remember(machinesList, actualRecords, todayKey) {
+        machinesList.filter { machine ->
+            val status = getMaintenanceStatus(machine.second, currentDay, currentMonth, currentYear)
+            if (status.isEmpty()) return@filter false
 
-        // 2. BELUM ADA ACTUAL HARI INI
-        val alreadyDoneToday = actualRecords.any { record ->
-            record.nama_mesin.trim().equals(machine.second.trim(), ignoreCase = true) &&
-                    isDateMatch(record.tanggal, todayKey)
+            val alreadyDoneToday = actualRecords.any { record ->
+                record.nama_mesin.trim().equals(machine.second.trim(), ignoreCase = true) &&
+                        isDateMatch(record.tanggal, todayKey)
+            }
+            !alreadyDoneToday
         }
-
-        !alreadyDoneToday
     }
 
     // ==================== TERLEWAT (1 Minggu Terakhir) ====================
-    val overdueTasks = machinesList.filter { machine ->
-        // Jika sudah masuk di "Hari Ini", jangan muncul di "Terlewat"
-        if (todayTasks.any { it.second.trim().equals(machine.second.trim(), ignoreCase = true) }) return@filter false
+    val overdueTasks = remember(machinesList, actualRecords, todayTasks) {
+        machinesList.filter { machine ->
+            if (todayTasks.any { it.second.trim().equals(machine.second.trim(), ignoreCase = true) }) return@filter false
 
-        for (i in 1..7) { // Mulai dari kemarin (1) sampai seminggu lalu (7)
-            val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -i) }
-            val day = cal.get(Calendar.DAY_OF_MONTH)
-            val month = cal.get(Calendar.MONTH)
-            val year = cal.get(Calendar.YEAR)
+            for (i in 1..7) {
+                val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -i) }
+                val day = cal.get(Calendar.DAY_OF_MONTH)
+                val month = cal.get(Calendar.MONTH)
+                val year = cal.get(Calendar.YEAR)
 
-            val status = getMaintenanceStatus(machine.second, day, month, year)
-            if (status.isNotEmpty()) {
-                val dateKey = String.format(Locale.US, "%02d/%02d/%d", day, month + 1, year)
-
-                val alreadyDone = actualRecords.any { record ->
-                    record.nama_mesin.trim().equals(machine.second.trim(), ignoreCase = true) &&
-                            isDateMatch(record.tanggal, dateKey)
-                }
-
-                // Jika ada satu saja jadwal yang belum dikerjakan di masa lalu, masukkan ke daftar
-                if (!alreadyDone) {
-                    return@filter true
+                val status = getMaintenanceStatus(machine.second, day, month, year)
+                if (status.isNotEmpty()) {
+                    val dateKey = String.format(Locale.US, "%02d/%02d/%d", day, month + 1, year)
+                    val alreadyDone = actualRecords.any { record ->
+                        record.nama_mesin.trim().equals(machine.second.trim(), ignoreCase = true) &&
+                                isDateMatch(record.tanggal, dateKey)
+                    }
+                    if (!alreadyDone) return@filter true
                 }
             }
+            false
         }
-        false
     }
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item { Spacer(Modifier.height(8.dp)) }
 
-        // SECTION 1
+        // SECTION 1: PERLU DIRAWAT HARI INI
         item {
             CollapsibleSection(
                 title = "PERLU DIRAWAT HARI INI",
                 icon = Icons.Default.CheckCircle,
-                color = GlassAccentGreen,
+                color = Color(0xFF10B981), // SciFiStatusM Green
                 count = todayTasks.size
             ) {
                 Column(
@@ -296,12 +280,12 @@ fun PerawatanContent(
             }
         }
 
-        // SECTION 2 - Terlewat
+        // SECTION 2: TERLEWAT (1 MINGGU)
         item {
             CollapsibleSection(
                 title = "TERLEWAT (1 MINGGU)",
                 icon = Icons.Default.Error,
-                color = Color(0xFFFF6B6B),
+                color = Color(0xFFC23B22), // SciFiHoliday Red
                 count = overdueTasks.size
             ) {
                 Column(
@@ -339,9 +323,13 @@ fun CollapsibleSection(
     count: Int,
     content: @Composable () -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(true) } // Di-default true agar data langsung HUD terlihat
 
-    Column {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.Transparent)
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -357,13 +345,15 @@ fun CollapsibleSection(
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 14.sp,
                 modifier = Modifier.weight(1f),
-                fontFamily = OrbitronFontFamily
+                fontFamily = OrbitronFontFamily,
+                letterSpacing = 0.5.sp
             )
             Text(
                 text = "($count)",
                 color = color,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                fontFamily = OrbitronFontFamily
             )
             Icon(
                 imageVector = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
@@ -377,7 +367,7 @@ fun CollapsibleSection(
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut()
         ) {
-            Box(modifier = Modifier.padding(top = 8.dp)) {
+            Box(modifier = Modifier.padding(top = 4.dp)) {
                 content()
             }
         }
@@ -392,42 +382,57 @@ fun MaintenanceCard(
     onCellClick: (String, String, String) -> Unit,
     isOverdue: Boolean = false
 ) {
-    val (finalStatus, finalDateKey) = if (isOverdue) {
-        var statusFound = ""
-        var dateFound: String? = null
-        for (i in 1..7) {
-            val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -i) }
-            val day = cal.get(Calendar.DAY_OF_MONTH)
-            val month = cal.get(Calendar.MONTH)
-            val year = cal.get(Calendar.YEAR)
-            val checkKey = String.format(Locale.US, "%02d/%02d/%d", day, month + 1, year)
-            val status = getMaintenanceStatus(machine.second, day, month, year)
-            if (status.isNotEmpty()) {
-                val hasActual = actualRecords.any { record ->
-                    record.nama_mesin.trim().equals(machine.second.trim(), ignoreCase = true) &&
-                            isDateMatch(record.tanggal, checkKey)
-                }
-                if (!hasActual) {
-                    statusFound = status
-                    dateFound = checkKey
-                    break
+    val finalData = remember(machine, dateKey, actualRecords, isOverdue) {
+        if (isOverdue) {
+            var statusFound = ""
+            var dateFound: String? = null
+            for (i in 1..7) {
+                val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -i) }
+                val day = cal.get(Calendar.DAY_OF_MONTH)
+                val month = cal.get(Calendar.MONTH)
+                val year = cal.get(Calendar.YEAR)
+                val checkKey = String.format(Locale.US, "%02d/%02d/%d", day, month + 1, year)
+                val status = getMaintenanceStatus(machine.second, day, month, year)
+                if (status.isNotEmpty()) {
+                    val hasActual = actualRecords.any { record ->
+                        record.nama_mesin.trim().equals(machine.second.trim(), ignoreCase = true) &&
+                                isDateMatch(record.tanggal, checkKey)
+                    }
+                    if (!hasActual) {
+                        statusFound = status
+                        dateFound = checkKey
+                        break
+                    }
                 }
             }
+            statusFound to dateFound
+        } else {
+            val parts = dateKey?.split("/") ?: emptyList()
+            val status = if (parts.size == 3) getMaintenanceStatus(machine.second, parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt()) else ""
+            status to dateKey
         }
-        statusFound to dateFound
-    } else {
-        val parts = dateKey?.split("/") ?: emptyList()
-        val status = if (parts.size == 3) getMaintenanceStatus(machine.second, parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt()) else ""
-        status to dateKey
     }
+
+    val finalStatus = finalData.first
+    val finalDateKey = finalData.second
 
     if (finalStatus.isEmpty() || finalDateKey == null) return
 
-    GlassCard(
-        borderColor = if (isOverdue) Color(0xFFFF6B6B).copy(alpha = 0.5f) else GlassAccentCyan.copy(alpha = 0.5f)
+    // PANEL KARTU KACA (Glassmorphic Outer Surface)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = SciFiGlass,
+        border = BorderStroke(
+            width = 1.dp,
+            brush = Brush.verticalGradient(
+                colors = if (isOverdue) listOf(Color(0xFFC23B22).copy(alpha = 0.4f), Color.Transparent)
+                else listOf(SciFiBorderLight, Color.Transparent)
+            )
+        )
     ) {
         Column(Modifier.padding(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.Top) {
                 Text(
                     machine.second,
                     fontWeight = FontWeight.Bold,
@@ -440,30 +445,54 @@ fun MaintenanceCard(
                 if (finalStatus.isNotEmpty()) {
                     Text(
                         finalStatus,
-                        color = if (finalStatus == "B") Color(0xFF60A5FA) else GlassAccentGreen,
+                        color = if (finalStatus == "B") Color(0xFF3B82F6) else Color(0xFF10B981),
                         fontWeight = FontWeight.Black,
-                        fontSize = 18.sp
+                        fontSize = 16.sp,
+                        fontFamily = OrbitronFontFamily,
+                        modifier = Modifier.padding(start = 6.dp)
                     )
                 }
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                text = if (isOverdue) "Terlewat: $finalDateKey" else "Belum dilakukan",
-                color = Color(0xFFFFB74D),
-                fontSize = 11.sp
+                text = if (isOverdue) "Terlewat: $finalDateKey" else "Jadwal Aktif",
+                color = if (isOverdue) Color(0xFFF87171) else Color(0xFFF59E0B),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium
             )
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
+
+            // BUTTON SUBMIT PERAWATAN (CORE REACTOR GLOW)
             Button(
                 onClick = {
                     onCellClick(machine.second, finalDateKey, finalStatus)
                 },
-                modifier = Modifier.fillMaxWidth().height(36.dp),
+                modifier = Modifier.fillMaxWidth().height(34.dp),
                 contentPadding = PaddingValues(0.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = GlassAccentGreen),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                 shape = RoundedCornerShape(10.dp)
             ) {
-                Text("RAWAT", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = if (isOverdue) listOf(Color(0xFFC23B22), Color(0xFF7F1D1D))
+                                else listOf(SciFiCyan, SciFiBlue)
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "RAWAT",
+                        color = if (isOverdue) Color.White else Color.Black,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = OrbitronFontFamily
+                    )
+                }
             }
         }
     }

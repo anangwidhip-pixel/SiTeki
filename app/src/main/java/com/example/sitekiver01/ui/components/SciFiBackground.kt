@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import com.example.sitekiver01.ui.theme.GlassBase
+import androidx.compose.foundation.Canvas
 
 @Composable
 fun SciFiBackground() {
@@ -144,4 +145,4 @@ fun SciFiBackground() {
 }
 
 // ==================== CANVAS IMPORT FIX ====================
-import androidx.compose.foundation.Canvas
+

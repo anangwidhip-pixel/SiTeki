@@ -16,9 +16,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -39,7 +42,7 @@ import java.util.*
 fun OrderPartScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    val sdf = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
 
     // --- State Form ---
     var tglPesan by remember { mutableStateOf(sdf.format(Date())) }
@@ -86,9 +89,10 @@ fun OrderPartScreen(onBack: () -> Unit) {
     if (showConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
-            containerColor = Color(0xFF1A1A1A),
-            title = { Text("Konfirmasi Simpan", color = Color.White) },
-            text = { Text("Apakah data yang Anda masukkan sudah benar?", color = GlassTextMuted) },
+            containerColor = Color(0xFF0F172A),
+            modifier = Modifier.border(1.dp, SciFiBorderLight, RoundedCornerShape(28.dp)),
+            title = { Text("Konfirmasi Simpan", color = Color.White, fontFamily = OrbitronFontFamily) },
+            text = { Text("Apakah data yang Anda masukkan sudah benar?", color = SciFiTextMuted) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -119,16 +123,15 @@ fun OrderPartScreen(onBack: () -> Unit) {
                             }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = GlassAccentCyan)
-                ) { Text("Ya", color = Color.Black) }
+                    colors = ButtonDefaults.buttonColors(containerColor = SciFiCyan)
+                ) { Text("Ya", color = Color.Black, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
-                TextButton(onClick = { showConfirmDialog = false }) { Text("Tidak", color = GlassTextMuted) }
+                TextButton(onClick = { showConfirmDialog = false }) { Text("Tidak", color = SciFiTextMuted) }
             }
         )
     }
 
-    // Dialogs tetap sama
     if (showPartSelection) {
         PartSelectionDialog(
             listStok = listStok,
@@ -174,29 +177,8 @@ fun OrderPartScreen(onBack: () -> Unit) {
     }
 
     Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
-        // Animated Background Orbs (sama persis)
-        val infiniteTransition = rememberInfiniteTransition(label = "orbs")
-        val orbOffset by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 100f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(8000, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            ), label = "orbMove"
-        )
-
-        Box(modifier = Modifier
-            .size(400.dp)
-            .offset(x = (-100).dp + orbOffset.dp, y = (-100).dp + (orbOffset/2).dp)
-            .background(GlassAccentPurple.copy(alpha = 0.15f), CircleShape)
-            .blur(100.dp))
-
-        Box(modifier = Modifier
-            .size(350.dp)
-            .align(Alignment.BottomEnd)
-            .offset(x = 100.dp - orbOffset.dp, y = 100.dp - (orbOffset/3).dp)
-            .background(GlassAccentCyan.copy(alpha = 0.12f), CircleShape)
-            .blur(80.dp))
+        // PONDASI UTAMA: Menggunakan Animasi Grid Siber Global
+        SciFiBackground()
 
         Scaffold(
             containerColor = Color.Transparent,
@@ -222,7 +204,8 @@ fun OrderPartScreen(onBack: () -> Unit) {
                             color = Color.White,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
-                            fontFamily = OrbitronFontFamily
+                            fontFamily = OrbitronFontFamily,
+                            letterSpacing = 1.sp
                         )
                     }
                 }
@@ -230,7 +213,7 @@ fun OrderPartScreen(onBack: () -> Unit) {
         ) { padding ->
             if (isLoading) {
                 Box(Modifier.fillMaxSize(), Alignment.Center) {
-                    CircularProgressIndicator(color = GlassAccentCyan)
+                    CircularProgressIndicator(color = SciFiCyan)
                 }
             } else {
                 Column(
@@ -238,37 +221,53 @@ fun OrderPartScreen(onBack: () -> Unit) {
                         .padding(padding)
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp)
+                        .padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(12.dp))
 
+                    // SECTION 1: IDENTITAS
                     ModernSectionHeader("IDENTITAS PESANAN", Icons.Default.Info)
-                    ModernFormCard {
-                        Column {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        color = SciFiGlass,
+                        border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
+                    ) {
+                        Column(Modifier.padding(20.dp)) {
                             FormLabel("TANGGAL PESAN")
                             ModernDatePickerField(tglPesan) { tglPesan = it }
+
+                            Spacer(Modifier.height(14.dp))
 
                             FormLabel("SPAREPART")
                             ModernClickableField(
                                 value = if (kategori.isEmpty() && namaPart.isEmpty()) ""
                                 else "$kategori | $namaPart - $ukuranPart",
                                 placeholder = "Pilih Kategori, Nama, & Ukuran...",
-                                        color = Color.White.copy(alpha = 0.05f)
+                                color = Color.White.copy(alpha = 0.03f)
                             ) { showPartSelection = true }
                         }
                     }
 
-                    Spacer(Modifier.height(24.dp))
-
+                    // SECTION 2: DETAIL
                     ModernSectionHeader("DETAIL PESANAN", Icons.Default.Inventory)
-                    ModernFormCard {
-                        Column {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        color = SciFiGlass,
+                        border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
+                    ) {
+                        Column(Modifier.padding(20.dp)) {
                             FormLabel("KEGUNAAN")
                             ModernTextField(
                                 value = kegunaan,
+                                onValueChange = { kegunaan = it }, // <-- PERBAIKAN: Masukkan ke dalam kurung di urutan kedua
                                 placeholder = "Part digunakan untuk...",
                                 minLines = 2
-                            ) { kegunaan = it }
+                            )
+
+                            Spacer(Modifier.height(14.dp))
 
                             FormLabel("JUMLAH PESAN")
                             Row(
@@ -283,13 +282,13 @@ fun OrderPartScreen(onBack: () -> Unit) {
                                     )
                                 }
                                 Surface(
-                                    color = Color.White.copy(alpha = 0.1f),
-                                    shape = RoundedCornerShape(12.dp),
-                                    border = BorderStroke(1.dp, GlassBorder)
+                                    color = Color.White.copy(alpha = 0.05f),
+                                    shape = RoundedCornerShape(14.dp),
+                                    border = BorderStroke(1.dp, SciFiBorderLight)
                                 ) {
                                     Text(
                                         text = satuanLabel,
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
                                         color = Color.White,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp
@@ -299,44 +298,91 @@ fun OrderPartScreen(onBack: () -> Unit) {
                         }
                     }
 
-                    Spacer(Modifier.height(24.dp))
-
+                    // SECTION 3: PENGGUNA
                     ModernSectionHeader("PENGGUNA & MESIN", Icons.Default.Person)
-                    ModernFormCard {
-                        Column {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        color = SciFiGlass,
+                        border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
+                    ) {
+                        Column(Modifier.padding(20.dp)) {
                             FormLabel("BAGIAN & PEMESAN")
                             ModernClickableField(
                                 value = if (bagian.isEmpty() && pemesan.isEmpty()) ""
                                 else "$bagian | $pemesan",
                                 placeholder = "Pilih Bagian & Pemesan...",
-                                color = Color.White.copy(alpha = 0.05f)
+                                color = Color.White.copy(alpha = 0.03f)
                             ) { showTeknisiDialog = true }
+
+                            Spacer(Modifier.height(14.dp))
 
                             FormLabel("MESIN")
                             ModernClickableField(
                                 value = mesinTerpilih,
                                 placeholder = "Pilih Mesin...",
-                                color = Color.White.copy(alpha = 0.05f)
+                                color = Color.White.copy(alpha = 0.03f)
                             ) { showMachineDialog = true }
                         }
                     }
 
-                    Spacer(Modifier.height(32.dp))
+                    Spacer(Modifier.height(24.dp))
 
-                    ModernButton(
-                        text = "SUBMIT ORDER",
-                        isLoading = isSubmitting,
-                        icon = Icons.Default.Send,
-                        onClick = { showConfirmDialog = true },
-                        modifier = Modifier.fillMaxWidth()
+                    // CORE REACTOR SUBMIT BUTTON WITH GLOW
+                    val infiniteTransitionPulse = rememberInfiniteTransition(label = "orderBtnGlow")
+                    val glowBlurFloat by infiniteTransitionPulse.animateFloat(
+                        initialValue = 6f,
+                        targetValue = 14f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1000, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ), label = "orderBtnPulse"
                     )
 
-                    Spacer(Modifier.height(50.dp))
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(54.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val blurRadiusDp = (glowBlurFloat / LocalDensity.current.density).dp
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.9f)
+                                .fillMaxHeight(0.8f)
+                                .background(SciFiCyan.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                                .blur(blurRadiusDp)
+                        )
+
+                        Button(
+                            onClick = { showConfirmDialog = true },
+                            modifier = Modifier.fillMaxSize(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Brush.horizontalGradient(colors = listOf(SciFiCyan, SciFiBlue)), RoundedCornerShape(16.dp))
+                                    .border(1.dp, SciFiBorderMedium, RoundedCornerShape(16.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Send, null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("SUBMIT ORDER SPAREPART", color = Color.Black, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, fontFamily = OrbitronFontFamily)
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(40.dp))
                 }
             }
         }
     }
 }
+
+// ==================== DIALOG COMPONENTS (CYBER THEME) ====================
 
 @Composable
 fun PartSelectionDialog(
@@ -348,7 +394,7 @@ fun PartSelectionDialog(
     val categories = remember(listStok) {
         listStok.map { it[1] }.distinct().filter { it.isNotBlank() && it != "Kategori" }
     }
-    var step by remember { mutableStateOf(1) } // 1: Kat & Nama, 2: Ukuran
+    var step by remember { mutableStateOf(1) }
     var selKat by remember { mutableStateOf(categories.firstOrNull() ?: "") }
     var selNama by remember { mutableStateOf("") }
 
@@ -356,33 +402,33 @@ fun PartSelectionDialog(
         Surface(
             Modifier.fillMaxWidth().height(550.dp),
             shape = RoundedCornerShape(24.dp),
-            color = Color(0xFF111111),
-            border = BorderStroke(1.dp, GlassBorder)
+            color = Color(0xFF0F172A),
+            border = BorderStroke(1.dp, SciFiBorderMedium)
         ) {
             Column {
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(64.dp).background(Color.White.copy(alpha = 0.05f)),
+                    modifier = Modifier.fillMaxWidth().height(64.dp).background(Color.White.copy(alpha = 0.04f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         if (step == 1) "PILIH JENIS DAN NAMA" else "PILIH UKURAN",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         fontFamily = OrbitronFontFamily
                     )
                 }
 
                 if (step == 1) {
                     Row(modifier = Modifier.weight(1f)) {
-                        LazyColumn(modifier = Modifier.weight(1f).fillMaxHeight().background(Color(0xFF1A1A1A)).border(0.5.dp, GlassBorder)) {
+                        LazyColumn(modifier = Modifier.weight(1f).fillMaxHeight().background(Color(0xFF0B1220)).border(0.5.dp, SciFiBorderLight)) {
                             items(categories) { kat ->
                                 val isSelected = selKat == kat
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable { selKat = kat }
-                                        .background(if (isSelected) GlassAccentCyan.copy(alpha = 0.15f) else Color.Transparent)
+                                        .background(if (isSelected) SciFiCyan.copy(alpha = 0.12f) else Color.Transparent)
                                         .padding(14.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
@@ -390,10 +436,10 @@ fun PartSelectionDialog(
                                     Text(
                                         kat,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isSelected) GlassAccentCyan else Color.White,
+                                        color = if (isSelected) SciFiCyan else Color.White,
                                         fontSize = 13.sp
                                     )
-                                    Icon(Icons.Default.ChevronRight, null, tint = if (isSelected) GlassAccentCyan else GlassTextMuted, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.ChevronRight, null, tint = if (isSelected) SciFiCyan else SciFiTextMuted, modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
@@ -401,7 +447,7 @@ fun PartSelectionDialog(
                         val names = remember(selKat, listStok) {
                             listStok.filter { it[1] == selKat }.map { it[2] }.distinct()
                         }
-                        LazyColumn(modifier = Modifier.weight(1.2f).fillMaxHeight().background(Color(0xFF111111))) {
+                        LazyColumn(modifier = Modifier.weight(1.2f).fillMaxHeight().background(Color(0xFF0F172A))) {
                             items(names) { name ->
                                 Text(
                                     name,
@@ -415,7 +461,7 @@ fun PartSelectionDialog(
                                     fontSize = 13.sp,
                                     color = Color.White
                                 )
-                                HorizontalDivider(color = GlassBorder.copy(alpha = 0.3f))
+                                HorizontalDivider(color = SciFiBorderLight.copy(alpha = 0.4f))
                             }
                         }
                     }
@@ -424,8 +470,8 @@ fun PartSelectionDialog(
                         listStok.filter { it[1] == selKat && it[2] == selNama }.map { it[3] }.distinct()
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Row(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { step = 1 }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = GlassAccentCyan) }
+                        Row(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { step = 1 }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = SciFiCyan) }
                             Text("$selKat > $selNama", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
                         }
                         LazyColumn(modifier = Modifier.weight(1f)) {
@@ -440,7 +486,7 @@ fun PartSelectionDialog(
                                     fontSize = 13.sp,
                                     color = Color.White
                                 )
-                                HorizontalDivider(color = GlassBorder.copy(alpha = 0.3f))
+                                HorizontalDivider(color = SciFiBorderLight.copy(alpha = 0.4f))
                             }
                         }
                     }
@@ -449,11 +495,11 @@ fun PartSelectionDialog(
                 Box(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                     OutlinedButton(
                         onClick = onTidakAdaData,
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        modifier = Modifier.fillMaxWidth().height(46.dp),
                         shape = RoundedCornerShape(24.dp),
-                        border = BorderStroke(1.dp, GlassAccentCyan)
+                        border = BorderStroke(1.dp, SciFiCyan)
                     ) {
-                        Text("TIDAK ADA DATA", color = GlassAccentCyan, fontWeight = FontWeight.Bold)
+                        Text("TIDAK ADA DATA", color = SciFiCyan, fontWeight = FontWeight.Bold, fontFamily = OrbitronFontFamily, fontSize = 12.sp)
                     }
                 }
             }
@@ -482,27 +528,41 @@ fun AddNewPartDialog(
         Surface(
             Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            color = Color(0xFF1A1A1A),
-            border = BorderStroke(1.dp, GlassBorder)
+            color = Color(0xFF0F172A),
+            border = BorderStroke(1.dp, SciFiBorderMedium)
         ) {
             Column(Modifier.padding(24.dp)) {
                 Text("TAMBAH DATA PART", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = Color.White, fontFamily = OrbitronFontFamily)
                 Spacer(Modifier.height(20.dp))
 
                 FormLabel("KATEGORI")
-                ModernDropdownField(kat, katOptions, "Pilih atau Ketik Kategori") { kat = it }
+                ModernDropdownField(
+                    selected = kat,
+                    options = katOptions,
+                    label = "Pilih Kategori...", // <-- Tambahkan parameter label ini
+                    onSelected = { kat = it }
+                )
+
+                Spacer(Modifier.height(10.dp))
 
                 FormLabel("NAMA PART")
-                ModernDropdownField(name, nameOptions, "Pilih atau Ketik Nama") { name = it }
+                ModernDropdownField(
+                    selected = name,
+                    options = nameOptions,
+                    label = "Pilih Nama Part...", // <-- Tambahkan parameter label ini
+                    onSelected = { name = it }
+                )
+
+                Spacer(Modifier.height(10.dp))
 
                 FormLabel("UKURAN")
                 ModernTextField(
                     value = size,
-                    onValueChange = { size = it },
+                    onValueChange = { size = it }, // <-- PERBAIKAN: Pastikan menggunakan onValueChange eksplisit
                     placeholder = "Masukkan Ukuran"
                 )
 
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(28.dp))
                 ModernButton(
                     text = "SIMPAN DATA",
                     onClick = {
@@ -513,7 +573,7 @@ fun AddNewPartDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                    Text("Batal", color = GlassTextMuted)
+                    Text("Batal", color = SciFiTextMuted)
                 }
             }
         }
@@ -522,7 +582,7 @@ fun AddNewPartDialog(
 
 @Composable
 fun MachineSelectionDialog(listMesin: List<List<String>>, onDismiss: () -> Unit, onSelected: (String) -> Unit) {
-    var step by remember { mutableStateOf(1) } // 1: Kat, 2: Jenis, 3: Nama
+    var step by remember { mutableStateOf(1) }
     var selKat by remember { mutableStateOf("") }
     var selJen by remember { mutableStateOf("") }
 
@@ -530,12 +590,12 @@ fun MachineSelectionDialog(listMesin: List<List<String>>, onDismiss: () -> Unit,
         Surface(
             Modifier.fillMaxWidth().height(550.dp),
             shape = RoundedCornerShape(24.dp),
-            color = Color(0xFF111111),
-            border = BorderStroke(1.dp, GlassBorder)
+            color = Color(0xFF0F172A),
+            border = BorderStroke(1.dp, SciFiBorderMedium)
         ) {
             Column {
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(64.dp).background(Color.White.copy(alpha = 0.05f)),
+                    modifier = Modifier.fillMaxWidth().height(64.dp).background(Color.White.copy(alpha = 0.04f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -545,7 +605,7 @@ fun MachineSelectionDialog(listMesin: List<List<String>>, onDismiss: () -> Unit,
                         },
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         fontFamily = OrbitronFontFamily
                     )
                 }
@@ -557,24 +617,24 @@ fun MachineSelectionDialog(listMesin: List<List<String>>, onDismiss: () -> Unit,
                     if (selKat.isEmpty() && categories.isNotEmpty()) selKat = categories.first()
 
                     Row(modifier = Modifier.weight(1f)) {
-                        LazyColumn(modifier = Modifier.weight(1f).fillMaxHeight().background(Color(0xFF1A1A1A)).border(0.5.dp, GlassBorder)) {
+                        LazyColumn(modifier = Modifier.weight(1f).fillMaxHeight().background(Color(0xFF0B1220)).border(0.5.dp, SciFiBorderLight)) {
                             items(categories) { kat ->
                                 val isSelected = selKat == kat
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable { selKat = kat }
-                                        .background(if (isSelected) GlassAccentCyan.copy(alpha = 0.15f) else Color.Transparent)
+                                        .background(if (isSelected) SciFiCyan.copy(alpha = 0.12f) else Color.Transparent)
                                         .padding(14.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         kat,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isSelected) GlassAccentCyan else Color.White,
+                                        color = if (isSelected) SciFiCyan else Color.White,
                                         fontSize = 13.sp
                                     )
-                                    Icon(Icons.Default.ChevronRight, null, tint = if (isSelected) GlassAccentCyan else GlassTextMuted, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.ChevronRight, null, tint = if (isSelected) SciFiCyan else SciFiTextMuted, modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
@@ -582,7 +642,7 @@ fun MachineSelectionDialog(listMesin: List<List<String>>, onDismiss: () -> Unit,
                         val types = remember(selKat, listMesin) {
                             listMesin.filter { it[0] == selKat }.map { it[1] }.distinct()
                         }
-                        LazyColumn(modifier = Modifier.weight(1.2f).fillMaxHeight().background(Color(0xFF111111))) {
+                        LazyColumn(modifier = Modifier.weight(1.2f).fillMaxHeight().background(Color(0xFF0F172A))) {
                             items(types) { type ->
                                 Text(
                                     type,
@@ -596,7 +656,7 @@ fun MachineSelectionDialog(listMesin: List<List<String>>, onDismiss: () -> Unit,
                                     fontSize = 13.sp,
                                     color = Color.White
                                 )
-                                HorizontalDivider(color = GlassBorder.copy(alpha = 0.3f))
+                                HorizontalDivider(color = SciFiBorderLight.copy(alpha = 0.4f))
                             }
                         }
                     }
@@ -605,8 +665,8 @@ fun MachineSelectionDialog(listMesin: List<List<String>>, onDismiss: () -> Unit,
                         listMesin.filter { it[1] == selJen }.map { it[2] }.distinct()
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Row(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { step = 1 }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = GlassAccentCyan) }
+                        Row(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { step = 1 }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = SciFiCyan) }
                             Text("$selKat > $selJen", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
                         }
                         LazyColumn(modifier = Modifier.weight(1f)) {
@@ -620,7 +680,7 @@ fun MachineSelectionDialog(listMesin: List<List<String>>, onDismiss: () -> Unit,
                                     fontSize = 13.sp,
                                     color = Color.White
                                 )
-                                HorizontalDivider(color = GlassBorder.copy(alpha = 0.3f))
+                                HorizontalDivider(color = SciFiBorderLight.copy(alpha = 0.4f))
                             }
                         }
                     }
@@ -645,32 +705,32 @@ fun TeknisiSelectionDialog(
         Surface(
             Modifier.fillMaxWidth().height(550.dp),
             shape = RoundedCornerShape(24.dp),
-            color = Color(0xFF111111),
-            border = BorderStroke(1.dp, GlassBorder)
+            color = Color(0xFF0F172A),
+            border = BorderStroke(1.dp, SciFiBorderMedium)
         ) {
             Column {
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(64.dp).background(Color.White.copy(alpha = 0.05f)),
+                    modifier = Modifier.fillMaxWidth().height(64.dp).background(Color.White.copy(alpha = 0.04f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         "PILIH BAGIAN & PEMESAN",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         fontFamily = OrbitronFontFamily
                     )
                 }
 
                 Row(modifier = Modifier.weight(1f)) {
-                    LazyColumn(modifier = Modifier.weight(1f).fillMaxHeight().background(Color(0xFF1A1A1A)).border(0.5.dp, GlassBorder)) {
+                    LazyColumn(modifier = Modifier.weight(1f).fillMaxHeight().background(Color(0xFF0B1220)).border(0.5.dp, SciFiBorderLight)) {
                         items(sections) { section ->
                             val isSelected = selSection == section
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { selSection = section }
-                                    .background(if (isSelected) GlassAccentCyan.copy(alpha = 0.15f) else Color.Transparent)
+                                    .background(if (isSelected) SciFiCyan.copy(alpha = 0.12f) else Color.Transparent)
                                     .padding(14.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
@@ -678,10 +738,10 @@ fun TeknisiSelectionDialog(
                                 Text(
                                     section,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) GlassAccentCyan else Color.White,
+                                    color = if (isSelected) SciFiCyan else Color.White,
                                     fontSize = 13.sp
                                 )
-                                Icon(Icons.Default.ChevronRight, null, tint = if (isSelected) GlassAccentCyan else GlassTextMuted, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.ChevronRight, null, tint = if (isSelected) SciFiCyan else SciFiTextMuted, modifier = Modifier.size(16.dp))
                             }
                         }
                     }
@@ -689,7 +749,7 @@ fun TeknisiSelectionDialog(
                     val names = remember(selSection, listTeknisi) {
                         listTeknisi.filter { it[3] == selSection }.map { it[0] }.distinct()
                     }
-                    LazyColumn(modifier = Modifier.weight(1.2f).fillMaxHeight().background(Color(0xFF111111))) {
+                    LazyColumn(modifier = Modifier.weight(1.2f).fillMaxHeight().background(Color(0xFF0F172A))) {
                         items(names) { name ->
                             Text(
                                 name,
@@ -700,7 +760,7 @@ fun TeknisiSelectionDialog(
                                 fontSize = 13.sp,
                                 color = Color.White
                             )
-                            HorizontalDivider(color = GlassBorder.copy(alpha = 0.3f))
+                            HorizontalDivider(color = SciFiBorderLight.copy(alpha = 0.4f))
                         }
                     }
                 }

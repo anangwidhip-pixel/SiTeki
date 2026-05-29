@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -53,7 +54,7 @@ fun StokPartScreen(
 ) {
     val scope = rememberCoroutineScope()
     val calendar = Calendar.getInstance()
-    val localeId = Locale("id", "ID")
+    val localeId = remember { Locale("id", "ID") }
     val currentMonthName = calendar.getDisplayName(Calendar.MONTH, Calendar.LONG, localeId) ?: ""
     val currentYear = calendar.get(Calendar.YEAR).toString()
 
@@ -72,7 +73,7 @@ fun StokPartScreen(
                 val filterBulan = selectedBulans.joinToString(", ") { "$it $currentYear" }
                 val encodedBulan = URLEncoder.encode(filterBulan, "UTF-8")
 
-                val scriptUrl = "https://script.google.com/macros/s/AKfycbxJOKT1yM71bQr1PbJSJ7X6q-RdJ1nmUpjvutRzkBvIYuPbZM2cGh3NuQ0X62GCJkVd/exec"
+                val scriptUrl = "https://script.google.com/macros/s/AKfycbxStokPartScriptIDHere/exec"
                 val urlString = "$scriptUrl?action=getStokPart&bulan=$encodedBulan"
 
                 val response = URL(urlString).readText()
@@ -92,7 +93,7 @@ fun StokPartScreen(
             }
         }
         isLoading = false
-        isRefreshing = false 
+        isRefreshing = false
     }
 
     LaunchedEffect(Unit) { fetchData() }
@@ -110,7 +111,7 @@ fun StokPartScreen(
         if (searchNama.length < 2) emptyList<String>()
         else {
             val query = searchNama.lowercase()
-            dataList.mapNotNull { 
+            dataList.mapNotNull {
                 val n = it.optString("nama", "")
                 val u = it.optString("ukuran", "")
                 val full = if (u.isNotEmpty()) "$n ($u)" else n
@@ -120,28 +121,9 @@ fun StokPartScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
-        // Animated Background Orbs
-        val infiniteTransition = rememberInfiniteTransition(label = "orbs")
-        val orbOffset by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 100f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(8000, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            ), label = "orbMove"
-        )
 
-        Box(modifier = Modifier
-            .size(400.dp)
-            .offset(x = (-100).dp + orbOffset.dp, y = (-100).dp + (orbOffset/2).dp)
-            .background(GlassAccentPurple.copy(alpha = 0.15f), CircleShape)
-            .blur(100.dp))
-        Box(modifier = Modifier
-            .size(350.dp)
-            .align(Alignment.BottomEnd)
-            .offset(x = 100.dp - orbOffset.dp, y = 100.dp - (orbOffset/3).dp)
-            .background(GlassAccentCyan.copy(alpha = 0.12f), CircleShape)
-            .blur(80.dp))
+        // PONDASI UTAMA: Background Mesh Grid Animasi Global
+        SciFiBackground()
 
         PullToRefreshBox(
             isRefreshing = isRefreshing,
@@ -206,7 +188,8 @@ fun StokPartScreenContent(
                         color = Color.White,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 18.sp,
-                        fontFamily = OrbitronFontFamily
+                        fontFamily = OrbitronFontFamily,
+                        letterSpacing = 1.sp
                     )
                 }
             }
@@ -216,28 +199,39 @@ fun StokPartScreenContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Spacer(Modifier.height(20.dp))
-            ModernSectionHeader("PENCARIAN DATA", Icons.Default.Search)
+            Spacer(Modifier.height(12.dp))
+            ModernSectionHeader("PENCARIAN INSTRUMEN", Icons.Default.Search)
 
-            ModernFormCard {
-                Column {
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // PANEL FILTER PENCARIAN (GLASSMORPHIC)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                color = SciFiGlass,
+                border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Box(modifier = Modifier.weight(1f)) {
                             OutlinedTextField(
                                 value = searchNama,
                                 onValueChange = onNamaChange,
-                                placeholder = { Text("Nama/Ukuran Sparepart...", fontSize = 13.sp, color = GlassTextMuted) },
+                                placeholder = { Text("Nama/Ukuran Sparepart...", fontSize = 13.sp, color = SciFiTextMuted) },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(48.dp),
+                                    .height(44.dp),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = GlassAccentCyan,
-                                    unfocusedBorderColor = GlassBorder,
-                                    focusedContainerColor = Color.White.copy(alpha = 0.05f),
-                                    unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+                                    focusedBorderColor = SciFiCyan,
+                                    unfocusedBorderColor = SciFiBorderLight,
+                                    focusedContainerColor = Color.White.copy(alpha = 0.03f),
+                                    unfocusedContainerColor = Color.White.copy(alpha = 0.03f),
                                     focusedTextColor = Color.White,
                                     unfocusedTextColor = Color.White
                                 ),
@@ -247,8 +241,8 @@ fun StokPartScreenContent(
                         IconButton(
                             onClick = onSearchClick,
                             modifier = Modifier
-                                .size(48.dp)
-                                .background(GlassAccentCyan, RoundedCornerShape(12.dp))
+                                .size(44.dp)
+                                .background(SciFiCyan, RoundedCornerShape(12.dp))
                         ) {
                             Icon(Icons.Default.Search, null, tint = Color.Black)
                         }
@@ -259,25 +253,27 @@ fun StokPartScreenContent(
                         Text(
                             "Mungkin maksud Anda:",
                             fontSize = 11.sp,
-                            color = GlassTextMuted,
-                            fontWeight = FontWeight.Bold
+                            color = SciFiTextMuted,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = OrbitronFontFamily
                         )
                         FlowRow(
                             modifier = Modifier.padding(top = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             suggestions.forEach { suggestion ->
                                 SuggestionChip(
-                                    onClick = { 
+                                    onClick = {
                                         val cleanText = if (suggestion.contains("(")) suggestion.substringBefore(" (") else suggestion
-                                        onNamaChange(cleanText) 
+                                        onNamaChange(cleanText)
                                     },
-                                    label = { Text(suggestion, fontSize = 10.sp) },
+                                    label = { Text(suggestion, fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                                     colors = SuggestionChipDefaults.suggestionChipColors(
-                                        containerColor = GlassAccentCyan.copy(alpha = 0.1f),
-                                        labelColor = GlassAccentCyan
+                                        containerColor = SciFiCyan.copy(alpha = 0.1f),
+                                        labelColor = SciFiCyan
                                     ),
-                                    border = BorderStroke(1.dp, GlassAccentCyan.copy(alpha = 0.3f)),
+                                    border = BorderStroke(1.dp, SciFiCyan.copy(alpha = 0.3f)),
                                     shape = RoundedCornerShape(8.dp)
                                 )
                             }
@@ -286,62 +282,69 @@ fun StokPartScreenContent(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(12.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 ModernSectionHeader("DAFTAR STOK PART", Icons.Default.Inventory2)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = onOrderPartClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = GlassAccentCyan),
+                        colors = ButtonDefaults.buttonColors(containerColor = SciFiCyan),
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.height(36.dp),
+                        modifier = Modifier.height(34.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp)
                     ) {
-                        Icon(Icons.Default.ShoppingCart, null, modifier = Modifier.size(16.dp), tint = Color.Black)
+                        Icon(Icons.Default.ShoppingCart, null, modifier = Modifier.size(14.dp), tint = Color.Black)
                         Spacer(Modifier.width(4.dp))
-                        Text("Order Part", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                        Text("Order Part", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black, fontFamily = OrbitronFontFamily)
                     }
                     Button(
                         onClick = onDaftarBonClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = GlassAccentGreen),
+                        colors = ButtonDefaults.buttonColors(containerColor = SciFiStatusM),
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.height(36.dp),
+                        modifier = Modifier.height(34.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp)
                     ) {
-                        Icon(Icons.Default.ListAlt, null, modifier = Modifier.size(16.dp), tint = Color.Black)
+                        Icon(Icons.Default.ListAlt, null, modifier = Modifier.size(14.dp), tint = Color.Black)
                         Spacer(Modifier.width(4.dp))
-                        Text("Daftar Bon", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                        Text("Daftar Bon", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.Black, fontFamily = OrbitronFontFamily)
                     }
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
 
-            ModernFormCard(modifier = Modifier.weight(1f)) {
-                Box(modifier = Modifier.fillMaxSize()) {
+            // TABEL DATA UTAMA (GLASSMORPHIC)
+            Surface(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                color = SciFiGlass,
+                border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
+            ) {
+                Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
                     if (isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = GlassAccentCyan)
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = SciFiCyan)
                     } else if (dataList.isEmpty()) {
-                        Text("Tidak ada data", modifier = Modifier.align(Alignment.Center), color = GlassTextMuted, fontSize = 14.sp)
+                        Text("Tidak ada data", modifier = Modifier.align(Alignment.Center), color = SciFiTextMuted, fontSize = 14.sp)
                     } else {
                         Box(modifier = Modifier.horizontalScroll(horizontalScrollState)) {
                             Column(modifier = Modifier.width(tableWidth)) {
                                 Row(modifier = Modifier
-                                    .background(GlassAccentCyan.copy(alpha = 0.1f))
+                                    .background(SciFiCyan.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
                                     .padding(vertical = 10.dp)) {
                                     HeaderCellStok("Nama Sparepart", 120.dp)
                                     HeaderCellStok("Ukuran/Jenis", 150.dp)
                                     HeaderCellStok("Stok", 80.dp)
                                     HeaderCellStok("Satuan", 80.dp)
                                 }
+                                Spacer(modifier = Modifier.height(4.dp))
                                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                                     itemsIndexed(dataList) { index, item ->
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .background(
-                                                    if (index % 2 == 0) Color.Transparent else Color.White.copy(alpha = 0.02f)
+                                                    if (index % 2 == 0) Color.Transparent else Color.White.copy(alpha = 0.01f)
                                                 ),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
@@ -350,7 +353,7 @@ fun StokPartScreenContent(
                                             DataCellStok(item.optString("stok"), 80.dp, TextAlign.Left)
                                             DataCellStok(item.optString("satuan"), 80.dp, TextAlign.Left)
                                         }
-                                        HorizontalDivider(color = GlassBorder)
+                                        HorizontalDivider(color = SciFiBorderLight.copy(alpha = 0.3f))
                                     }
                                 }
                             }
@@ -370,10 +373,11 @@ fun HeaderCellStok(text: String, width: Dp) {
         modifier = Modifier
             .width(width)
             .padding(horizontal = 8.dp),
-        color = GlassAccentCyan,
+        color = SciFiCyan,
         fontWeight = FontWeight.Bold,
         fontSize = 11.sp,
-        textAlign = TextAlign.Left
+        textAlign = TextAlign.Left,
+        fontFamily = OrbitronFontFamily
     )
 }
 

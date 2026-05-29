@@ -3,10 +3,14 @@ package com.example.sitekiver01.screens
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
@@ -17,9 +21,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sitekiver01.OrbitronFontFamily
@@ -34,6 +40,8 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -111,31 +119,12 @@ fun BuatOrderKerjaScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
-        // Animated Background Orbs
-        val infiniteTransition = rememberInfiniteTransition(label = "orbs")
-        val orbOffset by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 100f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(8000, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            ), label = "orbMove"
-        )
 
-        Box(modifier = Modifier
-            .size(400.dp)
-            .offset(x = (-100).dp + orbOffset.dp, y = (-100).dp + (orbOffset/2).dp)
-            .background(GlassAccentPurple.copy(alpha = 0.15f), CircleShape)
-            .blur(100.dp))
-        Box(modifier = Modifier
-            .size(350.dp)
-            .align(Alignment.BottomEnd)
-            .offset(x = 100.dp - orbOffset.dp, y = 100.dp - (orbOffset/3).dp)
-            .background(GlassAccentCyan.copy(alpha = 0.12f), CircleShape)
-            .blur(80.dp))
+        // PONDASI UTAMA: Menggunakan Background Mesh Animasi Sinkron dengan Dashboard
+        SciFiBackground()
 
         Scaffold(
-            containerColor = Color.Transparent,
+            containerColor = Color.Transparent, // Wajib transparan penuh agar mesh canvas terlihat
             topBar = {
                 Surface(
                     color = Color.Transparent,
@@ -151,7 +140,7 @@ fun BuatOrderKerjaScreen(
                     ) {
                         IconButton(
                             onClick = onBack,
-                            modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)
+                            modifier = Modifier.background(Color.White.copy(alpha = 0.08f), CircleShape)
                         ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = Color.White) }
                         Spacer(Modifier.width(16.dp))
                         Text(
@@ -159,7 +148,8 @@ fun BuatOrderKerjaScreen(
                             color = Color.White,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
-                            fontFamily = OrbitronFontFamily
+                            fontFamily = OrbitronFontFamily,
+                            letterSpacing = 1.sp
                         )
                     }
                 }
@@ -171,13 +161,21 @@ fun BuatOrderKerjaScreen(
                     .padding(padding)
                     .padding(horizontal = 20.dp)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Spacer(Modifier.height(12.dp))
+
+                // HEADER INFORMASI PEMBUAT
                 ModernSectionHeader("INFORMASI PEMBUAT", Icons.Default.Person)
 
-                ModernFormCard {
-                    Column {
+                // KARTU FORM 1: Gaya Glassmorphism Industri
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = SciFiGlass,
+                    border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
                         FormLabel("BAGIAN ORDER")
                         ModernDropdownField(
                             selected = bagianOrder,
@@ -185,6 +183,8 @@ fun BuatOrderKerjaScreen(
                             label = "Pilih Bagian Order...",
                             onSelected = { bagianOrder = it }
                         )
+
+                        Spacer(modifier = Modifier.height(14.dp))
 
                         FormLabel("NAMA PEMBUAT ORDER")
                         ModernTextField(
@@ -196,11 +196,19 @@ fun BuatOrderKerjaScreen(
                     }
                 }
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(12.dp))
+
+                // HEADER TUJUAN PERANGKAT
                 ModernSectionHeader("TUJUAN & PERANGKAT", Icons.Default.PrecisionManufacturing)
 
-                ModernFormCard {
-                    Column {
+                // KARTU FORM 2: Glassmorphic Perangkat
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = SciFiGlass,
+                    border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
                         FormLabel("BAGIAN TUJUAN")
                         ModernDropdownField(
                             selected = bagianTujuan,
@@ -209,13 +217,10 @@ fun BuatOrderKerjaScreen(
                             onSelected = { bagianTujuan = it }
                         )
 
-                        // REVISI 1: Baris Kategori & Jenis (Row sebelumnya) SUDAH DIHAPUS/HIDDEN
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(14.dp))
 
-                        // REVISI 2: Label Dinamis JENIS MESIN atau JENIS ARMADA
                         val labelJenisDinamis = if (bagianTujuan == "Bengkel") "JENIS ARMADA" else "JENIS MESIN"
                         FormLabel(labelJenisDinamis)
-
                         ModernDropdownField(
                             selected = selectedJenis,
                             options = jenisList,
@@ -223,10 +228,10 @@ fun BuatOrderKerjaScreen(
                             onSelected = { selectedJenis = it }
                         )
 
-                        // REVISI 2 tambahan: Label Dinamis NAMA MESIN atau NAMA ARMADA (Opsional agar seragam)
+                        Spacer(Modifier.height(14.dp))
+
                         val labelNamaDinamis = if (bagianTujuan == "Bengkel") "NAMA ARMADA" else "NAMA MESIN"
                         FormLabel(labelNamaDinamis)
-
                         ModernDropdownField(
                             selected = selectedNamaMesin,
                             options = namaMesinList,
@@ -236,13 +241,24 @@ fun BuatOrderKerjaScreen(
                     }
                 }
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(12.dp))
+
+                // HEADER DETAIL PEKERJAAN
                 ModernSectionHeader("DETAIL PEKERJAAN", Icons.AutoMirrored.Filled.Assignment)
 
-                ModernFormCard {
-                    Column {
+                // KARTU FORM 3: Glassmorphic Detail Masalah
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = SciFiGlass,
+                    border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
                         FormLabel("JENIS PEKERJAAN")
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             listOf("Perbaikan","Pemeriksaan","Pemasangan","Pemindahan","Pembuatan","Setting","Kalibrasi").forEach { opt ->
                                 ChoiceChip(
                                     text = opt,
@@ -252,6 +268,8 @@ fun BuatOrderKerjaScreen(
                             }
                         }
 
+                        Spacer(modifier = Modifier.height(16.dp))
+
                         FormLabel("KERUSAKAN / PERMASALAHAN")
                         ModernTextField(
                             value = kerusakan,
@@ -260,8 +278,13 @@ fun BuatOrderKerjaScreen(
                             minLines = 3
                         )
 
+                        Spacer(modifier = Modifier.height(16.dp))
+
                         FormLabel("TINGKAT URGENSI")
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             listOf("Biasa","Penting","Penting Sekali").forEach { opt ->
                                 ChoiceChip(
                                     text = opt,
@@ -273,43 +296,92 @@ fun BuatOrderKerjaScreen(
                     }
                 }
 
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(24.dp))
 
-                ModernButton(
-                    text = "SUBMIT ORDER KERJA",
-                    isLoading = isSubmitting,
-                    onClick = {
-                        if (bagianOrder.isEmpty() || bagianTujuan.isEmpty() || selectedNamaMesin.isEmpty() || kerusakan.isEmpty()) {
-                            Toast.makeText(context, "Mohon isi semua field wajib!", Toast.LENGTH_LONG).show()
-                            return@ModernButton
-                        }
-
-                        isSubmitting = true
-                        submitBuatOrderKerja(
-                            context = context,
-                            bagianOrder = bagianOrder,
-                            namaOrder = namaOrder,
-                            bagianTujuan = bagianTujuan,
-                            kategoriMesin = kategoriMesin,
-                            jenis = selectedJenis,
-                            namaMesin = selectedNamaMesin,
-                            jenisPekerjaan = jenisPekerjaan,
-                            kerusakan = kerusakan,
-                            urgensi = urgensi,
-                            onSuccess = {
-                                isSubmitting = false
-                                onSuccess()
-                            },
-                            onError = {
-                                isSubmitting = false
-                            }
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    icon = Icons.AutoMirrored.Filled.Send
+                // TOMBOL SUBMIT DENGAN GLOW PULSE EFFECT BERGAYA CORE REACTOR
+                val infiniteTransitionPulse = rememberInfiniteTransition(label = "btnGlow")
+                val glowBlurFloat by infiniteTransitionPulse.animateFloat(
+                    initialValue = 6f,
+                    targetValue = 14f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1000, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ), label = "btnGlowPulse"
                 )
 
-                Spacer(Modifier.height(50.dp))
+                // Pendaran cahaya di belakang tombol submit
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Kalkulasi konversi Float ke Dp secara langsung dan aman
+                    val blurRadiusDp = (glowBlurFloat / LocalDensity.current.density).dp
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.9f)
+                            .fillMaxHeight(0.8f)
+                            .background(SciFiCyan.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                            .blur(blurRadiusDp) // Sekarang bertipe Dp murni dan aman
+                    )
+
+                    Button(
+                        onClick = {
+                            if (bagianOrder.isEmpty() || bagianTujuan.isEmpty() || selectedNamaMesin.isEmpty() || kerusakan.isEmpty()) {
+                                Toast.makeText(context, "Mohon isi semua field wajib!", Toast.LENGTH_LONG).show()
+                                return@Button
+                            }
+
+                            isSubmitting = true
+                            submitBuatOrderKerja(
+                                context = context,
+                                bagianOrder = bagianOrder,
+                                namaOrder = namaOrder,
+                                bagianTujuan = bagianTujuan,
+                                kategoriMesin = kategoriMesin,
+                                jenis = selectedJenis,
+                                namaMesin = selectedNamaMesin,
+                                jenisPekerjaan = jenisPekerjaan,
+                                kerusakan = kerusakan,
+                                urgensi = urgensi,
+                                onSuccess = {
+                                    isSubmitting = false
+                                    onSuccess()
+                                },
+                                onError = {
+                                    isSubmitting = false
+                                }
+                            )
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    brush = Brush.horizontalGradient(colors = listOf(SciFiCyan, SciFiBlue)),
+                                    shape = RoundedCornerShape(16.dp)
+                                )
+                                .border(1.dp, SciFiBorderMedium, RoundedCornerShape(16.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isSubmitting) {
+                                CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(24.dp), strokeWidth = 2.5.dp)
+                            } else {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.AutoMirrored.Filled.Send, null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("SUBMIT ORDER KERJA", color = Color.Black, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, fontFamily = OrbitronFontFamily)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(40.dp))
             }
         }
     }

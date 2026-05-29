@@ -144,22 +144,57 @@ fun ModernTimePickerField(value: String, placeholder: String = "", onTimeSelecte
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ModernDropdownField(selected: String, options: List<String>, label: String, onSelected: (String) -> Unit) {
+fun ModernDropdownField(
+    selected: String,
+    options: List<String>,
+    label: String,
+    onSelected: (String) -> Unit
+) {
     var expanded by remember { mutableStateOf(false) }
-    Box(Modifier.padding(vertical = 4.dp)) {
-        ModernClickableField(selected, label) { expanded = true }
-        DropdownMenu(
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = selected,
+            onValueChange = {},
+            readOnly = true,
+            placeholder = { Text(label, color = SciFiTextMuted, fontSize = 14.sp) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+            shape = RoundedCornerShape(14.dp),
+            textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 14.sp),
+            // ==================== PENYELARASAN WARNA SIBER ====================
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = Color.White.copy(alpha = 0.05f),   // Transparan tipis saat fokus
+                unfocusedContainerColor = Color.White.copy(alpha = 0.03f), // Transparan tipis saat diam
+                focusedBorderColor = SciFiCyan,                            // Garis neon menyala saat aktif
+                unfocusedBorderColor = Color.White.copy(alpha = 0.12f),    // Garis kaca samar saat diam
+                focusedTrailingIconColor = SciFiCyan,
+                unfocusedTrailingIconColor = SciFiTextMuted
+            )
+        )
+
+        // Panel Menu Dropdown yang Muncul saat Diklik
+        ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier.fillMaxWidth(0.85f).background(Color(0xFF1A1A1A)).border(1.dp, GlassBorder)
+            modifier = Modifier.background(Color(0xFF0F172A)) // Menggunakan SciFiBrandCard agar teks menu terbaca jelas
         ) {
-            if (options.isEmpty()) {
-                DropdownMenuItem(text = { Text("Pilih data dulu", color = GlassTextMuted) }, onClick = { expanded = false })
-            } else {
-                options.forEach { opt ->
-                    DropdownMenuItem(text = { Text(opt, fontSize = 14.sp, color = Color.White) }, onClick = { onSelected(opt); expanded = false })
-                }
+            options.forEach { selectionOption ->
+                DropdownMenuItem(
+                    text = { Text(text = selectionOption, color = Color.White, fontSize = 14.sp) },
+                    onClick = {
+                        onSelected(selectionOption)
+                        expanded = false
+                    },
+                    modifier = Modifier.background(Color(0xFF0F172A))
+                )
             }
         }
     }
@@ -191,41 +226,30 @@ fun ModernSearchField(value: String, placeholder: String, onClick: () -> Unit, i
 @Composable
 fun ModernTextField(
     value: String,
+    onValueChange: (String) -> Unit,
     placeholder: String,
     icon: ImageVector? = null,
-    minLines: Int = 1,
-    onValueChange: (String) -> Unit
+    minLines: Int = 1
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        border = BorderStroke(1.dp, GlassBorder),
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White.copy(alpha = 0.05f)
-    ) {
-        Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (icon != null) {
-                Icon(icon, null, tint = GlassAccentCyan, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(12.dp))
-            }
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier.weight(1f),
-                textStyle = TextStyle(color = Color.White, fontSize = 14.sp),
-                cursorBrush = SolidColor(GlassAccentCyan),
-                minLines = minLines,
-                decorationBox = { innerTextField ->
-                    if (value.isEmpty()) {
-                        Text(placeholder, color = GlassTextMuted, fontSize = 14.sp)
-                    }
-                    innerTextField()
-                }
-            )
-        }
-    }
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = { Text(placeholder, color = SciFiTextMuted, fontSize = 14.sp) },
+        leadingIcon = icon?.let { { Icon(it, contentDescription = null, tint = SciFiTextMuted) } },
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        minLines = minLines,
+        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 14.sp),
+        // ==================== PENYELARASAN WARNA SIBER ====================
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = Color.White.copy(alpha = 0.05f),
+            unfocusedContainerColor = Color.White.copy(alpha = 0.03f),
+            focusedBorderColor = SciFiCyan,
+            unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
+            focusedLabelColor = SciFiCyan,
+            unfocusedLabelColor = SciFiTextMuted
+        )
+    )
 }
 
 @Composable

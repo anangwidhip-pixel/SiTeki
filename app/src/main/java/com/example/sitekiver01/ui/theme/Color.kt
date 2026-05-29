@@ -30,7 +30,7 @@ val GlassTextMuted = Color(0xFFA0A0AB)
 val SciFiBgDeep = Color(0xFF020617)           // Very deep navy/black
 val SciFiBrandDark = Color(0xFF050B14)        // Brand dark navy
 val SciFiBrandCard = Color(0xFF0F172A)        // Card/surface background
-val SciFiGlass = Color(0x0F172AFF).copy(alpha = 0.78f)  // Glass with 78% opacity
+val SciFiGlass = Color(0xFF0F172A).copy(alpha = 0.15f)
 
 // Primary Accents
 val SciFiCyan = Color(0xFF06B6D4)             // Neon cyan (primary)

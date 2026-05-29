@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,6 +31,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.net.URL
 
+// Model data class eksternal untuk dipetakan
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrderKerjaListScreen(
@@ -72,28 +74,9 @@ fun OrderKerjaListScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
-        // Animated Background Orbs
-        val infiniteTransition = rememberInfiniteTransition(label = "orbs")
-        val orbOffset by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 100f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(8000, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            ), label = "orbMove"
-        )
 
-        Box(modifier = Modifier
-            .size(400.dp)
-            .offset(x = (-100).dp + orbOffset.dp, y = (-100).dp + (orbOffset/2).dp)
-            .background(GlassAccentPurple.copy(alpha = 0.15f), CircleShape)
-            .blur(100.dp))
-        Box(modifier = Modifier
-            .size(350.dp)
-            .align(Alignment.BottomEnd)
-            .offset(x = 100.dp - orbOffset.dp, y = 100.dp - (orbOffset/3).dp)
-            .background(GlassAccentCyan.copy(alpha = 0.12f), CircleShape)
-            .blur(80.dp))
+        // PONDASI UTAMA: Background Mesh Grid Animasi Global
+        SciFiBackground()
 
         Scaffold(
             containerColor = Color.Transparent,
@@ -120,7 +103,8 @@ fun OrderKerjaListScreen(
                             color = Color.White,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
-                            fontFamily = OrbitronFontFamily
+                            fontFamily = OrbitronFontFamily,
+                            letterSpacing = 1.sp
                         )
                     }
                 }
@@ -128,11 +112,12 @@ fun OrderKerjaListScreen(
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = onBuatOrderClick,
-                    containerColor = GlassAccentCyan,
+                    containerColor = SciFiCyan,
                     contentColor = Color.Black,
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.border(1.dp, SciFiBorderMedium, RoundedCornerShape(16.dp))
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Buat Order Baru")
+                    Icon(Icons.Default.Add, contentDescription = "Buat Order Baru", modifier = Modifier.size(24.dp))
                 }
             }
         ) { padding ->
@@ -140,18 +125,30 @@ fun OrderKerjaListScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                ModernSectionHeader("PENCARIAN", Icons.Default.Search)
-                
-                ModernFormCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(Modifier.height(12.dp))
+
+                ModernSectionHeader("PENCARIAN INSTRUMEN", Icons.Default.Search)
+
+                // PANEL FILTER (GLASSMORPHIC)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = SciFiGlass,
+                    border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
+                ) {
+                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        FormLabel("KATA KUNCI")
                         ModernTextField(
                             value = searchQuery,
+                            onValueChange = { searchQuery = it },
                             placeholder = "Cari Mesin / Kerusakan...",
-                            icon = Icons.Default.Search,
-                            onValueChange = { searchQuery = it }
+                            icon = Icons.Default.Search
                         )
+
+                        FormLabel("FILTER PERIODE BULAN")
                         ModernDropdownField(
                             selected = selectedMonth,
                             options = months,
@@ -161,22 +158,22 @@ fun OrderKerjaListScreen(
                     }
                 }
 
-                Spacer(Modifier.height(24.dp))
-                ModernSectionHeader("LIST ORDER KERJA", Icons.AutoMirrored.Filled.List)
+                Spacer(Modifier.height(12.dp))
+                ModernSectionHeader("LIST ORDER KERJA ACTIVE", Icons.AutoMirrored.Filled.List)
 
                 if (isLoading) {
                     Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
-                        CircularProgressIndicator(color = GlassAccentCyan)
+                        CircularProgressIndicator(color = SciFiCyan)
                     }
                 } else if (filteredOrders.isEmpty()) {
                     Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
-                        Text("Tidak ada data order", color = GlassTextMuted, fontSize = 14.sp)
+                        Text("Tidak ada data order", color = SciFiTextMuted, fontSize = 14.sp)
                     }
                 } else {
                     LazyColumn(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(bottom = 20.dp)
+                        contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
                         items(filteredOrders) { order ->
                             OrderCardModern(order = order, onClick = { onOrderClick(order) })
@@ -190,29 +187,31 @@ fun OrderKerjaListScreen(
 
 @Composable
 fun OrderCardModern(order: OrderItem, onClick: () -> Unit) {
+    // Definisi Warna Berbasis Variabel Tema Siber Global
+    val colorUrgensi = when (order.urgensi) {
+        "Penting Sekali" -> Color(0xFFC23B22)  // SciFiHoliday Red
+        "Penting" -> Color(0xFFD97706)         // SciFiSaturday Amber
+        else -> SciFiCyan
+    }
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
-        color = GlassSurface,
-        border = BorderStroke(1.dp, GlassBorder)
+        color = SciFiGlass,
+        border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Indikator Titik Urgensi
             Box(
                 modifier = Modifier
                     .size(10.dp)
-                    .background(
-                        when (order.urgensi) {
-                            "Penting Sekali" -> Color.Red
-                            "Penting" -> GlassAccentAmber
-                            else -> GlassAccentCyan
-                        },
-                        CircleShape
-                    )
+                    .background(colorUrgensi, CircleShape)
+                    .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
             )
 
             Spacer(Modifier.width(16.dp))
@@ -226,52 +225,55 @@ fun OrderCardModern(order: OrderItem, onClick: () -> Unit) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = order.kerusakan,
-                    color = GlassTextMuted,
+                    color = SciFiTextMuted,
                     fontSize = 13.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "${order.bagianOrder} • ${order.tanggal}",
-                    color = GlassAccentCyan.copy(alpha = 0.7f),
+                    color = SciFiCyan.copy(alpha = 0.7f),
                     fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    fontFamily = OrbitronFontFamily
                 )
             }
 
-            Column(horizontalAlignment = Alignment.End) {
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.Center) {
+                val isOpenStatus = order.status.equals("Open", true)
                 Surface(
-                    color = if (order.status.equals("Open", true)) GlassAccentGreen.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.05f),
+                    color = if (isOpenStatus) Color(0xFF10B981).copy(alpha = 0.1f) else Color.White.copy(alpha = 0.04f),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(0.5.dp, if (order.status.equals("Open", true)) GlassAccentGreen.copy(alpha = 0.5f) else GlassBorder)
+                    border = BorderStroke(0.5.dp, if (isOpenStatus) Color(0xFF10B981).copy(alpha = 0.4f) else SciFiBorderLight)
                 ) {
                     Text(
                         text = order.status.uppercase(),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        color = if (order.status.equals("Open", true)) GlassAccentGreen else GlassTextMuted,
+                        color = if (isOpenStatus) Color(0xFF10B981) else SciFiTextMuted,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp
+                        fontSize = 10.sp,
+                        fontFamily = OrbitronFontFamily
                     )
                 }
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
-                    text = order.urgensi,
-                    color = when(order.urgensi) {
-                        "Penting Sekali" -> Color.Red
-                        "Penting" -> GlassAccentAmber
-                        else -> GlassAccentCyan
-                    },
+                    text = order.urgensi.uppercase(),
+                    color = colorUrgensi,
                     fontWeight = FontWeight.ExtraBold,
-                    fontSize = 10.sp
+                    fontSize = 9.sp,
+                    fontFamily = OrbitronFontFamily,
+                    letterSpacing = 0.5.sp
                 )
             }
         }
     }
 }
 
-// ==================== FETCH DATA ====================
+// ==================== FETCH DATA SYSTEM ====================
 private fun fetchAllOrders(onResult: (List<OrderItem>) -> Unit) {
     CoroutineScope(Dispatchers.IO).launch {
         try {

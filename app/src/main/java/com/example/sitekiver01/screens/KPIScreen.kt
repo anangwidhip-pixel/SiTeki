@@ -1,19 +1,9 @@
 package com.example.sitekiver01.screens
 
-import android.app.Activity
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,15 +13,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
@@ -40,18 +27,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.view.WindowCompat
-import com.example.sitekiver01.OrbitronFontFamily
 import com.example.sitekiver01.ui.theme.*
-import com.example.sitekiver01.components.ModernFormCard
-import com.example.sitekiver01.components.ModernSectionHeader
+import com.example.sitekiver01.OrbitronFontFamily
+import com.example.sitekiver01.components.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URL
-import java.util.Locale
+import java.util.*
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+
 
 // --- 1. MODEL DATA ---
 data class RekapData(val bulan: String, val pencapaian: Float, val target: Float)
@@ -61,12 +49,12 @@ data class CombinedSheetData(
 )
 data class KpiData(val month: String, val value: Float)
 
-// --- 2. KONSTANTA WARNA ---
-val ChartBlue = Color(0xFF00E5FF) // GlassAccentCyan
-val ChartYellow = Color(0xFFFF9F0A) // GlassAccentAmber
-val ChartTeal = Color(0xFF9D50BB) // GlassAccentPurple
+// --- 2. KONSTANTA WARNA UTAMA ---
+val ChartBlue = Color(0xFF06B6D4) // SciFiCyan
+val ChartYellow = Color(0xFFD97706) // SciFiSaturday Amber
+val ChartTeal = Color(0xFF9D50BB) // SciFiPurple
 val ChartBackgroundDark = Color.Transparent
-val DividerGray = Color.White.copy(alpha = 0.12f)
+val DividerGray = Color.White.copy(alpha = 0.08f)
 
 // --- 3. HELPER ---
 fun getNamaBulan(dateString: String): String {
@@ -123,28 +111,9 @@ fun KPIScreen(
     LaunchedEffect(Unit) { fetchData() }
 
     Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
-        // Background Orbs
-        val infiniteTransition = rememberInfiniteTransition(label = "orbs")
-        val orbOffset by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 100f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(8000, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            ), label = "orbMove"
-        )
 
-        Box(modifier = Modifier
-            .size(400.dp)
-            .offset(x = (-100).dp + orbOffset.dp, y = (-100).dp + (orbOffset/2).dp)
-            .background(GlassAccentPurple.copy(alpha = 0.15f), CircleShape)
-            .blur(100.dp))
-        Box(modifier = Modifier
-            .size(350.dp)
-            .align(Alignment.BottomEnd)
-            .offset(x = 100.dp - orbOffset.dp, y = 100.dp - (orbOffset/3).dp)
-            .background(GlassAccentCyan.copy(alpha = 0.12f), CircleShape)
-            .blur(80.dp))
+        // PONDASI UTAMA: Menggunakan Animasi Grid Siber Global
+        SciFiBackground()
 
         KPIScreenContent(
             sheetRekap = sheetRekap,
@@ -198,7 +167,8 @@ fun KPIScreenContent(
                         color = Color.White,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 18.sp,
-                        fontFamily = OrbitronFontFamily
+                        fontFamily = OrbitronFontFamily,
+                        letterSpacing = 1.sp
                     )
                 }
             }
@@ -215,8 +185,8 @@ fun KPIScreenContent(
                 }
         ) {
             if (isLoading && !isRefreshing) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { 
-                    CircularProgressIndicator(color = GlassAccentCyan) 
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = SciFiCyan)
                 }
             } else {
                 Column(modifier = Modifier
@@ -228,12 +198,19 @@ fun KPIScreenContent(
                     }
                 ) {
                     Spacer(Modifier.height(20.dp))
-                    
-                    ModernFormCard {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+
+                    // HEADER KARTU UTAMA PERUSAHAAN (GLASSMORPHIC)
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        color = SciFiGlass,
+                        border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
+                    ) {
+                        Row(modifier = Modifier.padding(20.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("PT. RAJA BESI", color = Color.Red, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, fontFamily = OrbitronFontFamily)
-                                Text("MAINTENANCE PERFORMANCE", color = GlassTextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text("PT. PABRIK BESI BETON RAJA BESI", color = Color.Red, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, fontFamily = OrbitronFontFamily)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("MAINTENANCE PERFORMANCE", color = SciFiTextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = OrbitronFontFamily)
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 KPIBox(label = "Armada", value = "20")
@@ -244,6 +221,7 @@ fun KPIScreenContent(
 
                     Spacer(Modifier.height(24.dp))
 
+                    // SECTION 1: PERAWATAN
                     ModernSectionHeader("PERAWATAN (%)", Icons.Default.Engineering)
                     KpiLineChart(
                         chartId = "CHART_PERAWATAN",
@@ -251,11 +229,13 @@ fun KPIScreenContent(
                         onTooltipChange = { activeTooltip = it },
                         data = sheetRekap.map { KpiData(getNamaBulan(it.bulan), it.pencapaian) },
                         targetValue = sheetRekap.firstOrNull()?.target ?: 80f,
-                        lineColor = GlassAccentCyan, unitName = "% Pencapaian", isPercentage = true,
+                        lineColor = SciFiCyan, unitName = "% Pencapaian", isPercentage = true,
                         onDetailClick = onNavigateToDetailPerawatan
                     )
 
                     Spacer(Modifier.height(24.dp))
+
+                    // SECTION 2: DOWNTIME
                     ModernSectionHeader("DOWNTIME (JAM)", Icons.Default.Timer)
                     KpiLineChart(
                         chartId = "CHART_DOWNTIME",
@@ -263,22 +243,26 @@ fun KPIScreenContent(
                         onTooltipChange = { activeTooltip = it },
                         data = sheetCombined.map { KpiData(getNamaBulan(it.bulan), it.jam) },
                         targetValue = sheetCombined.firstOrNull()?.target ?: 500f,
-                        lineColor = GlassAccentAmber, targetColor = Color.Red, isPercentage = false, maxValue = 1000f, unitName = "Total Jam",
+                        lineColor = SciFiSaturday, targetColor = Color.Red, isPercentage = false, maxValue = 1000f, unitName = "Total Jam",
                         onDetailClick = onNavigateToDetailDowntime
                     )
 
                     Spacer(Modifier.height(24.dp))
+
+                    // SECTION 3: JML ORDER
                     ModernSectionHeader("JUMLAH ORDER (UNIT)", Icons.Default.AddShoppingCart)
                     KpiLineChart(
                         chartId = "CHART_ORDER",
                         activeTooltip = activeTooltip,
                         onTooltipChange = { activeTooltip = it },
                         data = sheetCombined.map { KpiData(getNamaBulan(it.bulan), it.order) },
-                        targetValue = 0f, lineColor = GlassAccentPurple, isPercentage = false, maxValue = 350f, unitName = "Jumlah Order",
-                        onDetailClick = {} 
+                        targetValue = 0f, lineColor = SciFiPurple, isPercentage = false, maxValue = 350f, unitName = "Jumlah Order",
+                        onDetailClick = {}
                     )
 
                     Spacer(Modifier.height(24.dp))
+
+                    // SECTION 4: KUALITAS TABEL
                     ModernSectionHeader("KUALITAS PELAYANAN", Icons.Default.Stars)
                     KwalitasPelayananTable(sheetCombined)
 
@@ -296,8 +280,8 @@ fun KpiLineChart(
     onTooltipChange: (Pair<String, Int>?) -> Unit,
     data: List<KpiData>,
     targetValue: Float,
-    lineColor: Color = GlassAccentCyan,
-    targetColor: Color = GlassAccentAmber,
+    lineColor: Color = SciFiCyan,
+    targetColor: Color = SciFiSaturday,
     isPercentage: Boolean = true,
     maxValue: Float = 100f,
     unitName: String = "",
@@ -305,7 +289,7 @@ fun KpiLineChart(
 ) {
     val textMeasurer = rememberTextMeasurer()
     val selectedIndex = if (activeTooltip?.first == chartId) activeTooltip.second else null
-    val labelStyle = TextStyle(fontSize = 10.sp, color = GlassTextMuted)
+    val labelStyle = TextStyle(fontSize = 10.sp, color = SciFiTextMuted)
     val valueStyle = TextStyle(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = lineColor)
 
     Box(modifier = Modifier.fillMaxWidth().height(320.dp)) {
@@ -317,8 +301,8 @@ fun KpiLineChart(
                     detectTapGestures { onTooltipChange(null) }
                 },
             shape = RoundedCornerShape(24.dp),
-            color = GlassSurface,
-            border = BorderStroke(1.dp, GlassBorder)
+            color = SciFiGlass, // Menggunakan warna kaca transparan siber
+            border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
         ) {
             Column {
                 Row(
@@ -329,7 +313,7 @@ fun KpiLineChart(
                 ) {
                     Text(
                         text = "Detail >",
-                        style = TextStyle(fontSize = 12.sp, color = GlassAccentCyan, fontWeight = FontWeight.Bold),
+                        style = TextStyle(fontSize = 12.sp, color = SciFiCyan, fontWeight = FontWeight.Bold, fontFamily = OrbitronFontFamily),
                         modifier = Modifier
                             .clickable { onDetailClick() }
                             .padding(4.dp)
@@ -378,21 +362,21 @@ fun KpiLineChart(
 
                     listOf(0f, 0.25f, 0.5f, 0.75f, 1f).forEach { p ->
                         val y = marginTop + chartHeight - (chartHeight * p)
-                        drawLine(Color.White.copy(0.05f), Offset(marginLeft, y), Offset(marginLeft + chartWidth, y))
+                        drawLine(Color.White.copy(0.04f), Offset(marginLeft, y), Offset(marginLeft + chartWidth, y))
                     }
 
                     val tY = marginTop + chartHeight - (chartHeight * (targetValue / maxValue))
                     if (targetValue > 0) {
                         drawLine(targetColor, Offset(marginLeft, tY), Offset(marginLeft + chartWidth, tY), 3f)
                         val targetText = if (isPercentage) "Target ${targetValue.toInt()}%" else "Target Max ${targetValue.toInt()} Jam"
-                        val pillBgColor = if (!isPercentage) Color.Red else targetColor
+                        val pillBgColor = if (!isPercentage) Color(0xFFC23B22) else targetColor
                         val pillTextColor = if (!isPercentage) Color.White else Color.Black
-                        val targetPillStyle = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = pillTextColor)
+                        val targetPillStyle = TextStyle(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = pillTextColor, fontFamily = OrbitronFontFamily)
                         val textLayout = textMeasurer.measure(targetText, targetPillStyle)
-                        val boxWidth = textLayout.size.width + 24f
+                        val boxWidth = textLayout.size.width + 20f
                         val boxX = marginLeft + chartWidth - boxWidth
-                        drawRoundRect(pillBgColor, Offset(boxX, tY - textLayout.size.height - 15f), Size(boxWidth, textLayout.size.height + 10f), CornerRadius(8.dp.toPx()))
-                        drawText(textMeasurer, targetText, Offset(boxX + 12f, tY - textLayout.size.height - 10f), style = targetPillStyle)
+                        drawRoundRect(pillBgColor, Offset(boxX, tY - textLayout.size.height - 12f), Size(boxWidth, textLayout.size.height + 8f), CornerRadius(6.dp.toPx()))
+                        drawText(textMeasurer, targetText, Offset(boxX + 10f, tY - textLayout.size.height - 8f), style = targetPillStyle)
                     }
 
                     val points = data.mapIndexed { i, d -> Offset(marginLeft + (i * spacing), marginTop + chartHeight - (chartHeight * (d.value / maxValue))) }
@@ -408,13 +392,13 @@ fun KpiLineChart(
                         }
                         drawPath(strokePath, lineColor, style = Stroke(5f, cap = StrokeCap.Round, join = StrokeJoin.Round))
                         val fillPath = Path().apply { addPath(strokePath); lineTo(points.last().x, marginTop + chartHeight); lineTo(points.first().x, marginTop + chartHeight); close() }
-                        drawPath(fillPath, brush = Brush.verticalGradient(listOf(lineColor.copy(0.15f), Color.Transparent)))
+                        drawPath(fillPath, brush = Brush.verticalGradient(listOf(lineColor.copy(0.12f), Color.Transparent)))
                     }
 
                     selectedIndex?.let { index ->
                         val pt = points[index]
                         drawLine(
-                            color = Color.White.copy(0.2f),
+                            color = Color.White.copy(0.15f),
                             start = Offset(pt.x, marginTop),
                             end = Offset(pt.x, marginTop + chartHeight),
                             strokeWidth = 2f,
@@ -435,6 +419,7 @@ fun KpiLineChart(
             }
         }
 
+        // TOOLTIP DETECT POP-UP (GLASSMORPHIC THEME)
         selectedIndex?.let { index ->
             val item = data[index]
             Surface(
@@ -442,20 +427,21 @@ fun KpiLineChart(
                     .align(Alignment.BottomStart)
                     .padding(12.dp)
                     .width(165.dp),
-                color = Color(0xFF1A1A1A),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, lineColor.copy(alpha = 0.3f))
+                color = Color(0xFF0F172A),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, lineColor.copy(alpha = 0.4f))
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text(getNamaBulan(item.month), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
+                    Text(getNamaBulan(item.month), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White, fontFamily = OrbitronFontFamily)
+                    Spacer(modifier = Modifier.height(4.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(modifier = Modifier.size(8.dp).background(lineColor, CircleShape))
-                            Spacer(Modifier.width(4.dp))
-                            Text(unitName, fontSize = 10.sp, color = GlassTextMuted)
+                            Spacer(Modifier.width(6.dp))
+                            Text(unitName, fontSize = 10.sp, color = SciFiTextMuted)
                         }
                         val valueString = if (unitName == "Jumlah Order") item.value.toInt().toString() else String.format(Locale.US, "%.1f", item.value)
-                        Text(text = valueString, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, color = Color.White)
+                        Text(text = valueString, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp, color = Color.White, fontFamily = OrbitronFontFamily)
                     }
                 }
             }
@@ -467,35 +453,40 @@ fun KpiLineChart(
 fun KPIBox(label: String, value: String) {
     Surface(
         modifier = Modifier.size(width = 80.dp, height = 60.dp),
-        color = Color.White.copy(alpha = 0.05f),
+        color = Color.White.copy(alpha = 0.04f),
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, GlassBorder)
+        border = BorderStroke(1.dp, SciFiBorderLight)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Text(text = label, color = GlassTextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            Text(text = value, color = GlassAccentGreen, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+            Text(text = label, color = SciFiTextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = OrbitronFontFamily)
+            Text(text = value, color = Color(0xFF10B981), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, fontFamily = OrbitronFontFamily)
         }
     }
 }
 
 @Composable
 fun KwalitasPelayananTable(data: List<CombinedSheetData>) {
-    ModernFormCard {
-        Column {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = SciFiGlass,
+        border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("BULAN", color = GlassAccentCyan, modifier = Modifier.weight(1.5f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                Text("BAGUS", color = GlassAccentCyan, modifier = Modifier.weight(1.5f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                Text("CUKUP", color = GlassAccentCyan, modifier = Modifier.weight(0.8f), textAlign = TextAlign.Center, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                Text("TDK BGS", color = GlassAccentCyan, modifier = Modifier.weight(0.8f), textAlign = TextAlign.Center, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text("BULAN", color = SciFiCyan, modifier = Modifier.weight(1.5f), fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = OrbitronFontFamily)
+                Text("BAGUS", color = SciFiCyan, modifier = Modifier.weight(1.5f), fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = OrbitronFontFamily)
+                Text("CUKUP", color = SciFiCyan, modifier = Modifier.weight(0.8f), textAlign = TextAlign.Center, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = OrbitronFontFamily)
+                Text("TDK BGS", color = SciFiCyan, modifier = Modifier.weight(0.8f), textAlign = TextAlign.Center, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = OrbitronFontFamily)
             }
-            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = GlassBorder)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = SciFiBorderLight)
             data.forEachIndexed { index, item ->
                 Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("${index + 1}. ${getNamaBulan(item.bulan)}", color = Color.White, modifier = Modifier.weight(1.5f), fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     Row(modifier = Modifier.weight(1.5f), verticalAlignment = Alignment.CenterVertically) {
-                        Text(item.bagus.toInt().toString(), color = Color.White, fontSize = 12.sp, modifier = Modifier.width(35.dp), fontWeight = FontWeight.Bold)
+                        Text(item.bagus.toInt().toString(), color = Color.White, fontSize = 12.sp, modifier = Modifier.width(30.dp), fontWeight = FontWeight.Bold)
                         val barWidth = (item.bagus / 350f).coerceIn(0f, 1f)
-                        Box(modifier = Modifier.fillMaxWidth(barWidth).height(10.dp).background(GlassAccentAmber, RoundedCornerShape(5.dp)))
+                        Box(modifier = Modifier.fillMaxWidth(barWidth).height(8.dp).background(SciFiSaturday, RoundedCornerShape(4.dp)))
                     }
                     Text(item.cukup.toInt().toString(), color = Color.White, modifier = Modifier.weight(0.8f), textAlign = TextAlign.Center, fontSize = 12.sp)
                     Text(item.tidakBagus.toInt().toString(), color = Color.White, modifier = Modifier.weight(0.8f), textAlign = TextAlign.Center, fontSize = 12.sp)

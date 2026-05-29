@@ -1,9 +1,9 @@
 package com.example.sitekiver01.screens
 
-import android.app.Activity
-import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border // MENYEMBUHKAN: Unresolved reference 'border'
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
@@ -13,28 +13,21 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.AutoAwesomeMotion
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.Composable // MENYEMBUHKAN: Unresolved reference 'remember' pendukung
+import androidx.compose.runtime.remember   // MENYEMBUHKAN: Unresolved reference 'remember' murni
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.view.WindowCompat
 import com.example.sitekiver01.R
 import com.example.sitekiver01.components.ModernSectionHeader
+import com.example.sitekiver01.components.SciFiBackground
 import com.example.sitekiver01.ui.theme.*
 import com.example.sitekiver01.OrbitronFontFamily
 
@@ -65,28 +58,9 @@ fun KatalogScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
-        // Animated Background Orbs
-        val infiniteTransition = rememberInfiniteTransition(label = "orbs")
-        val orbOffset by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 100f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(8000, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            ), label = "orbMove"
-        )
 
-        Box(modifier = Modifier
-            .size(400.dp)
-            .offset(x = (-100).dp + orbOffset.dp, y = (-100).dp + (orbOffset/2).dp)
-            .background(GlassAccentPurple.copy(alpha = 0.15f), CircleShape)
-            .blur(100.dp))
-        Box(modifier = Modifier
-            .size(350.dp)
-            .align(Alignment.BottomEnd)
-            .offset(x = 100.dp - orbOffset.dp, y = 100.dp - (orbOffset/3).dp)
-            .background(GlassAccentCyan.copy(alpha = 0.12f), CircleShape)
-            .blur(80.dp))
+        // PONDASI UTAMA: Background Mesh Grid Animasi Global
+        SciFiBackground()
 
         Scaffold(
             containerColor = Color.Transparent,
@@ -105,11 +79,12 @@ fun KatalogScreen(
                         ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = Color.White) }
                         Spacer(Modifier.width(16.dp))
                         Text(
-                            "DAFTAR KATALOG",
+                            "DAFTAR KATALOG SPAREPART",
                             color = Color.White,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
-                            fontFamily = OrbitronFontFamily
+                            fontFamily = OrbitronFontFamily,
+                            letterSpacing = 1.sp
                         )
                     }
                 }
@@ -119,20 +94,25 @@ fun KatalogScreen(
                 modifier = modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Spacer(Modifier.height(20.dp))
-                ModernSectionHeader("KOLEKSI KATALOG", Icons.Default.AutoAwesomeMotion)
-                
+                Spacer(Modifier.height(12.dp))
+                ModernSectionHeader("KOLEKSI DATA KATALOG", Icons.Default.AutoAwesomeMotion)
+
+                // RESOLVED: items() memetakan objek secara presisi tanpa argument type mismatch
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     contentPadding = PaddingValues(bottom = 32.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
                     modifier = Modifier.weight(1f)
                 ) {
                     items(katalogItems) { item ->
-                        ModernKatalogCard(item = item, onClick = { onNavigateToWebView(item.url, item.title) })
+                        ModernKatalogCard(
+                            item = item,
+                            onClick = { onNavigateToWebView(item.url, item.title) }
+                        )
                     }
                 }
             }
@@ -143,27 +123,45 @@ fun KatalogScreen(
 @Composable
 fun ModernKatalogCard(item: KatalogItem, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() },
-        shape = RoundedCornerShape(28.dp),
-        color = GlassSurface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(24.dp),
+        color = SciFiGlass,
+        border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
     ) {
         Column(
             modifier = Modifier.padding(16.dp).fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Reaktor Siber Pembungkus Ikon Gambar
             Box(
-                modifier = Modifier.size(80.dp).background(Color.White.copy(alpha = 0.05f), CircleShape).padding(12.dp),
+                modifier = Modifier
+                    .size(72.dp)
+                    .background(SciFiCyan.copy(alpha = 0.05f), CircleShape)
+                    .border(1.dp, SciFiCyan.copy(alpha = 0.15f), CircleShape)
+                    .padding(12.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Image(painter = painterResource(id = item.icon), contentDescription = item.title, modifier = Modifier.fillMaxSize())
+                Image(
+                    painter = painterResource(id = item.icon),
+                    contentDescription = item.title,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(text = item.title, fontWeight = FontWeight.Bold, fontSize = 13.sp, textAlign = TextAlign.Center, color = Color.White, maxLines = 2, minLines = 2, overflow = TextOverflow.Ellipsis)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = item.title.uppercase(),
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                fontFamily = OrbitronFontFamily,
+                textAlign = TextAlign.Center,
+                color = Color.White,
+                maxLines = 2,
+                minLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                letterSpacing = 0.5.sp
+            )
         }
     }
 }
-
-@Preview(showBackground = true)
-@Composable
-fun KatalogScreenPreview() { SiTekiVer01Theme { KatalogScreen(onBack = {}, onNavigateToWebView = { _, _ -> }) } }

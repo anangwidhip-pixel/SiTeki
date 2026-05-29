@@ -35,6 +35,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -226,23 +228,89 @@ fun AppNavigation() {
     }
 
     if (showPerawatanPopup) {
-        AlertDialog(
-            onDismissRequest = { showPerawatanPopup = false },
-            containerColor = SciFiGlass,
-            modifier = Modifier.border(1.dp, SciFiBorderLight, RoundedCornerShape(28.dp)),
-            title = { Text(text = "Pilih Halaman", color = Color.White, fontFamily = OrbitronFontFamily) },
-            text = { Text(text = "Apakah Ingin Melihat Jadwal?", color = SciFiTextMuted) },
-            confirmButton = {
-                Button(onClick = { showPerawatanPopup = false; currentScreen = Screen.JadPerawatan }, colors = ButtonDefaults.buttonColors(containerColor = SciFiCyan)) {
-                    Text("Ya", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { showPerawatanPopup = false; currentScreen = Screen.Perawatan }, border = BorderStroke(1.dp, SciFiBorderLight)) {
-                    Text("Tidak", color = Color.White)
+        Dialog(onDismissRequest = { showPerawatanPopup = false }) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .wrapContentHeight(),
+                shape = RoundedCornerShape(28.dp),
+                color = Color(0xFF0F172A), // Latar belakang gelap padat untuk memblokir teks belakang
+                border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // JUDUL DIALOG
+                    Text(
+                        text = "PILIH HALAMAN",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White,
+                        fontFamily = OrbitronFontFamily,
+                        letterSpacing = 1.sp
+                    )
+
+                    // ISI TEKS PERTANYAAN ASLI
+                    Text(
+                        text = "Apakah Ingin Melihat Jadwal?",
+                        fontSize = 13.sp,
+                        color = SciFiTextMuted,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 18.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // TOMBOL AKSI PILIHAN
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // TOMBOL JADWAL (Pilihan "Ya" -> Screen.JadPerawatan)
+                        Button(
+                            onClick = {
+                                showPerawatanPopup = false
+                                currentScreen = Screen.JadPerawatan
+                            },
+                            modifier = Modifier.weight(1f).height(40.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = SciFiCyan),
+                            border = BorderStroke(1.dp, SciFiBorderMedium)
+                        ) {
+                            Text(
+                                text = "JADWAL",
+                                color = Color.Black,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                fontFamily = OrbitronFontFamily
+                            )
+                        }
+
+                        // TOMBOL PERAWATAN (Pilihan "Tidak" -> Screen.Perawatan)
+                        OutlinedButton(
+                            onClick = {
+                                showPerawatanPopup = false
+                                currentScreen = Screen.Perawatan
+                            },
+                            modifier = Modifier.weight(1f).height(40.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                            border = BorderStroke(1.dp, SciFiBorderLight)
+                        ) {
+                            Text(
+                                text = "PERAWATAN",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                fontFamily = OrbitronFontFamily
+                            )
+                        }
+                    }
                 }
             }
-        )
+        }
     }
 
     val showBottomBar = currentScreen in listOf(Screen.Dashboard, Screen.QRScanner)
@@ -572,33 +640,189 @@ fun DashboardScreen(
 
 @Composable
 fun CustomBottomNavigation(modifier: Modifier = Modifier, selectedIndex: Int, onItemSelected: (Int) -> Unit) {
-    Box(modifier = modifier.fillMaxWidth().padding(bottom = 16.dp, start = 16.dp, end = 16.dp).height(80.dp), contentAlignment = Alignment.BottomCenter) {
+    val density = LocalDensity.current
+
+    val barHeight = 72.dp
+    val fabSize = 64.dp
+
+    val barHeightPx = with(density) { barHeight.toPx() }
+    val cornerRadiusPx = with(density) { 24.dp.toPx() }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(bottom = 16.dp, start = 12.dp, end = 12.dp)
+            .height(barHeight + 16.dp),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+
+        // ==================== GEOMETRI SHAPE DOCK NAVIGASI ====================
+        val cyberDockShape = GenericShape { size, _ ->
+            val w = size.width
+            val h = size.height
+            val center = w / 2
+
+            val notchW = with(density) { 46.dp.toPx() }
+            val notchH = with(density) { 32.dp.toPx() }
+            val r = cornerRadiusPx
+
+            // Start dari sudut kiri atas
+            moveTo(r, 0f)
+            lineTo(center - notchW, 0f)
+
+            // Lekukan Tengah (Notch)
+            cubicTo(
+                center - (notchW * 0.6f), 0f,
+                center - (notchW * 0.7f), notchH,
+                center, notchH
+            )
+            cubicTo(
+                center + (notchW * 0.7f), notchH,
+                center + (notchW * 0.6f), 0f,
+                center + notchW, 0f
+            )
+
+            lineTo(w - r, 0f)
+
+            // Rounded Kanan Atas
+            arcTo(Rect(w - 2 * r, 0f, w, 2 * r), 270f, 90f, false)
+
+            // Sisi Kanan & Kanan Bawah
+            lineTo(w, h - r)
+            arcTo(Rect(w - 2 * r, h - 2 * r, w, h), 0f, 90f, false)
+
+            // Sisi Bawah & Kiri Bawah
+            lineTo(r, h)
+            arcTo(Rect(0f, h - 2 * r, 2 * r, h), 90f, 90f, false)
+
+            // Sisi Kiri & Kiri Atas
+            lineTo(0f, r)
+            arcTo(Rect(0f, 0f, 2 * r, 2 * r), 180f, 90f, false)
+            close()
+        }
+
+        // ==================== SURFACE BACKDROP ====================
         Surface(
-            modifier = Modifier.fillMaxWidth().height(68.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = SciFiGlass,
-            border = BorderStroke(1.dp, SciFiBorderLight)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(barHeight)
+                .graphicsLayer {
+                    shape = cyberDockShape
+                    clip = true // Memotong isi background agar mengikuti lekukan
+                }
+                .drawBehind {
+                    val w = size.width
+                    val center = w / 2
+                    val notchW = with(density) { 46.dp.toPx() }
+                    val notchH = with(density) { 32.dp.toPx() }
+                    val r = cornerRadiusPx
+
+                    val strokeThickness = 3.5f
+                    // PENTING: Turunkan offset Y sedikit (setengah dari tebal stroke)
+                    // agar tidak terpotong cacat oleh clip bounds di koordinat 0f
+                    val offsetY = strokeThickness / 2
+
+                    // Jalur gambar neon khusus area Notch Tengah saja agar kiri-kanan bersih total
+                    val borderPath = androidx.compose.ui.graphics.Path().apply {
+                        // Mulai agak kiri sebelum lekukan notch
+                        moveTo(center - notchW - 20f, offsetY)
+                        lineTo(center - notchW, offsetY)
+                        cubicTo(
+                            center - (notchW * 0.6f), offsetY,
+                            center - (notchW * 0.7f), notchH,
+                            center, notchH
+                        )
+                        cubicTo(
+                            center + (notchW * 0.7f), notchH,
+                            center + (notchW * 0.6f), offsetY,
+                            center + notchW, offsetY
+                        )
+                        // Berakhir agak kanan setelah lekukan notch
+                        lineTo(center + notchW + 20f, offsetY)
+                    }
+
+                    // Gambar garis neon pendaran di area tengah saja
+                    drawPath(
+                        path = borderPath,
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                SciFiCyan,
+                                SciFiBlue,
+                                SciFiCyan,
+                                Color.Transparent
+                            )
+                        ),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeThickness)
+                    )
+                },
+            color = Color(0xCC070D19),
+            border = null // Pastikan border bawaan material null agar tidak memunculkan garis putih tipis liar
         ) {
-            Row(modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
-                NavItem(Icons.Rounded.Dashboard, "Home", selectedIndex == 0) { onItemSelected(0) }
-                NavItem(Icons.Rounded.SettingsSuggest, "Maint", selectedIndex == 1) { onItemSelected(1) }
-                Spacer(modifier = Modifier.width(68.dp))
-                NavItem(Icons.AutoMirrored.Rounded.Assignment, "Lap", selectedIndex == 3) { onItemSelected(3) }
-                NavItem(Icons.Rounded.ManageAccounts, "Akun", selectedIndex == 4) { onItemSelected(4) }
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                NavItem(Icons.Rounded.Dashboard, "DASHBOARD", selectedIndex == 0) { onItemSelected(0) }
+                NavItem(Icons.Rounded.SettingsSuggest, "MAINT", selectedIndex == 1) { onItemSelected(1) }
+
+                Spacer(modifier = Modifier.width(fabSize + 12.dp))
+
+                NavItem(Icons.AutoMirrored.Rounded.Assignment, "LAPORAN", selectedIndex == 3) { onItemSelected(3) }
+                NavItem(Icons.Rounded.ManageAccounts, "AKUN", selectedIndex == 4) { onItemSelected(4) }
             }
         }
 
-        // FAB Pulse Glow Effect Bergaya HTML Partikel
-        val infinitePulse = rememberInfiniteTransition(label = "pulse")
-        val glowSize by infinitePulse.animateFloat(initialValue = 10f, targetValue = 22f, animationSpec = infiniteRepeatable(tween(1200, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "glow")
+        // ==================== CORE REACTOR FAB ====================
+        val infinitePulse = rememberInfiniteTransition(label = "reactorPulse")
+        val glowRadius by infinitePulse.animateFloat(
+            initialValue = 10f,
+            targetValue = 20f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1200, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "glow"
+        )
 
-        Box(modifier = Modifier.align(Alignment.TopCenter).offset(y = (-12).dp).size(68.dp), contentAlignment = Alignment.Center) {
-            Box(modifier = Modifier.size(54.dp).background(SciFiCyan.copy(alpha = 0.35f), CircleShape).blur(glowSize.dp))
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = (-8).dp)
+                .size(fabSize),
+            contentAlignment = Alignment.Center
+        ) {
             Box(
-                modifier = Modifier.fillMaxSize().background(Brush.horizontalGradient(colors = listOf(SciFiCyan, SciFiBlue)), CircleShape).border(1.dp, SciFiBorderMedium, CircleShape).clickable { onItemSelected(2) },
+                modifier = Modifier
+                    .size(fabSize - 8.dp)
+                    .background(SciFiCyan.copy(alpha = 0.25f), CircleShape)
+                    .blur(glowRadius.dp)
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .border(2.dp, Brush.sweepGradient(listOf(SciFiCyan, SciFiBlue, SciFiCyan)), CircleShape)
+            )
+
+            Box(
+                modifier = Modifier
+                    .size(fabSize - 8.dp)
+                    .clip(CircleShape)
+                    .background(brush = Brush.verticalGradient(colors = listOf(Color(0xFF0D192B), Color(0xFF040810))))
+                    .border(1.dp, SciFiCyan.copy(alpha = 0.4f), CircleShape)
+                    .clickable { onItemSelected(2) },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(imageVector = Icons.Rounded.QrCodeScanner, contentDescription = "QR Scanner", tint = Color.Black, modifier = Modifier.size(30.dp))
+                Icon(
+                    imageVector = Icons.Rounded.QrCodeScanner,
+                    contentDescription = "Core Scanner",
+                    tint = SciFiCyan,
+                    modifier = Modifier.size(26.dp)
+                )
             }
         }
     }
@@ -606,13 +830,80 @@ fun CustomBottomNavigation(modifier: Modifier = Modifier, selectedIndex: Int, on
 
 @Composable
 fun NavItem(icon: Any, label: String, isSelected: Boolean, onClick: () -> Unit) {
-    val animatedColor by animateColorAsState(targetValue = if (isSelected) SciFiCyan else Color.White.copy(alpha = 0.4f), animationSpec = tween(300), label = "color")
-    val animatedScale by animateFloatAsState(targetValue = if (isSelected) 1.15f else 1f, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy), label = "scale")
-    Column(modifier = Modifier.width(56.dp).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Icon(imageVector = icon as ImageVector, contentDescription = label, tint = animatedColor, modifier = Modifier.size(24.dp).graphicsLayer { scaleX = animatedScale; scaleY = animatedScale })
-        Spacer(modifier = Modifier.height(2.dp))
-        AnimatedVisibility(visible = isSelected, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
-            Text(text = label, color = SciFiCyan, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = OrbitronFontFamily)
+    val animatedColor by animateColorAsState(
+        targetValue = if (isSelected) SciFiCyan else Color.White.copy(alpha = 0.35f),
+        animationSpec = tween(250),
+        label = "neonColor"
+    )
+    val animatedScale by animateFloatAsState(
+        targetValue = if (isSelected) 1.2f else 1.0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "neonScale"
+    )
+
+    Column(
+        modifier = Modifier
+            .width(64.dp)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null, // Menghilangkan ripple bawaan Android
+                onClick = onClick
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.height(28.dp)) {
+            if (isSelected) {
+                Icon(
+                    imageVector = icon as ImageVector,
+                    contentDescription = null,
+                    tint = SciFiCyan.copy(alpha = 0.4f),
+                    modifier = Modifier
+                        .size(24.dp)
+                        .blur(6.dp)
+                        .graphicsLayer {
+                            scaleX = animatedScale
+                            scaleY = animatedScale
+                        }
+                )
+            }
+            Icon(
+                imageVector = icon as ImageVector,
+                contentDescription = label,
+                tint = animatedColor,
+                modifier = Modifier
+                    .size(22.dp)
+                    .graphicsLayer {
+                        scaleX = animatedScale
+                        scaleY = animatedScale
+                    }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = label,
+            color = animatedColor,
+            fontSize = 8.5.sp,
+            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+            fontFamily = OrbitronFontFamily,
+            letterSpacing = 0.5.sp,
+            textAlign = TextAlign.Center,
+            maxLines = 1
+        )
+
+        AnimatedVisibility(
+            visible = isSelected,
+            enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
+            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top)
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .size(width = 12.dp, height = 2.dp)
+                    .background(SciFiCyan, RoundedCornerShape(1.dp))
+            )
         }
     }
 }

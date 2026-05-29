@@ -1,14 +1,12 @@
 package com.example.sitekiver01.screens
 
 import android.widget.Toast
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.*
@@ -16,11 +14,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -45,6 +42,7 @@ import java.util.*
 fun DaftarOrderScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
     // Masukkan URL Deployment Terbaru Anda di sini
     val scriptUrl = "https://script.google.com/macros/s/AKfycbxJOKT1yM71bQr1PbJSJ7X6q-RdJ1nmUpjvutRzkBvIYuPbZM2cGh3NuQ0X62GCJkVd/exec"
 
@@ -85,28 +83,9 @@ fun DaftarOrderScreen(onBack: () -> Unit) {
     }
 
     Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
-        // Animated Background Orbs
-        val infiniteTransition = rememberInfiniteTransition(label = "orbs")
-        val orbOffset by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 100f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(8000, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            ), label = "orbMove"
-        )
 
-        Box(modifier = Modifier
-            .size(400.dp)
-            .offset(x = (-100).dp + orbOffset.dp, y = (-100).dp + (orbOffset/2).dp)
-            .background(GlassAccentPurple.copy(alpha = 0.15f), CircleShape)
-            .blur(100.dp))
-        Box(modifier = Modifier
-            .size(350.dp)
-            .align(Alignment.BottomEnd)
-            .offset(x = 100.dp - orbOffset.dp, y = 100.dp - (orbOffset/3).dp)
-            .background(GlassAccentCyan.copy(alpha = 0.12f), CircleShape)
-            .blur(80.dp))
+        // PONDASI UTAMA: Background Mesh Grid Animasi Global
+        SciFiBackground()
 
         Scaffold(
             containerColor = Color.Transparent,
@@ -133,7 +112,8 @@ fun DaftarOrderScreen(onBack: () -> Unit) {
                             color = Color.White,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
-                            fontFamily = OrbitronFontFamily
+                            fontFamily = OrbitronFontFamily,
+                            letterSpacing = 1.sp
                         )
                     }
                 }
@@ -143,51 +123,73 @@ fun DaftarOrderScreen(onBack: () -> Unit) {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                ModernSectionHeader("PENCARIAN BON", Icons.Default.Search)
-                ModernFormCard {
-                    ModernTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = "Cari Nama atau Ukuran...",
-                        icon = Icons.Default.Search
-                    )
-                }
-                Spacer(Modifier.height(24.dp))
-                ModernSectionHeader("DATA BON OPEN", Icons.AutoMirrored.Filled.ListAlt)
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
+                ModernSectionHeader("PENCARIAN DATA BON", Icons.Default.Search)
 
-                ModernFormCard(modifier = Modifier.weight(1f)) {
-                    Box(modifier = Modifier.fillMaxSize()) {
+                // PANEL PENCARIAN (GLASSMORPHIC)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = SciFiGlass,
+                    border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
+                ) {
+                    Box(modifier = Modifier.padding(16.dp)) {
+                        ModernTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = "Cari Nama atau Ukuran...",
+                            icon = Icons.Default.Search
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(4.dp))
+                ModernSectionHeader("DATA REKAMAN BON OPEN", Icons.AutoMirrored.Filled.ListAlt)
+
+                // TABEL DATA UTAMA (GLASSMORPHIC)
+                Surface(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = SciFiGlass,
+                    border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
+                ) {
+                    Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
                         if (isLoading) {
-                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = GlassAccentCyan)
+                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = SciFiCyan)
                         } else if (filteredData.isEmpty()) {
-                            Text("Tidak ada bon open", modifier = Modifier.align(Alignment.Center), color = GlassTextMuted)
+                            Text("Tidak ada bon open", modifier = Modifier.align(Alignment.Center), color = SciFiTextMuted, fontSize = 14.sp)
                         } else {
                             val horizontalScrollState = rememberScrollState()
                             Box(modifier = Modifier.horizontalScroll(horizontalScrollState)) {
                                 Column(modifier = Modifier.width(550.dp)) {
-                                    Row(modifier = Modifier.background(GlassAccentCyan.copy(alpha = 0.1f)).padding(vertical = 10.dp)) {
+                                    Row(
+                                        modifier = Modifier
+                                            .background(SciFiCyan.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                                            .padding(vertical = 10.dp)
+                                    ) {
                                         HeaderCellOrder("Tgl Pesan", 110.dp)
                                         HeaderCellOrder("Nama", 200.dp)
                                         HeaderCellOrder("Ukuran", 140.dp)
                                         HeaderCellOrder("Jml Pesan", 100.dp)
                                     }
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                                         itemsIndexed(filteredData) { index, item ->
                                             Row(
                                                 modifier = Modifier.fillMaxWidth()
                                                     .clickable { selectedOrder = item; showUpdateDialog = true }
-                                                    .background(if (index % 2 == 0) Color.Transparent else Color.White.copy(alpha = 0.02f)),
+                                                    .background(if (index % 2 == 0) Color.Transparent else Color.White.copy(alpha = 0.01f)),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 DataCellOrder(item.optString("tanggal"), 110.dp)
                                                 DataCellOrder(item.optString("nama"), 200.dp, TextAlign.Start)
-                                                DataCellOrder(item.optString("ukuran"), 140.dp)
+                                                DataCellOrder(item.optString("ukuran"), 140.dp, TextAlign.Start)
                                                 DataCellOrder("${item.optString("jumlah")}", 100.dp)
                                             }
-                                            HorizontalDivider(color = GlassBorder)
+                                            HorizontalDivider(color = SciFiBorderLight.copy(alpha = 0.3f))
                                         }
                                     }
                                 }
@@ -236,7 +238,8 @@ fun UpdateOrderDialog(
     onDismiss: () -> Unit,
     onUpdate: (tglDatang: String, jmlDatang: String) -> Unit
 ) {
-    val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    // PERBAIKAN LOCALE WARNING: Membungkus Formatter ke dalam remember
+    val sdf = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     var tglDatang by remember { mutableStateOf(sdf.format(Date())) }
     var jmlDatang by remember { mutableStateOf(order.optString("jumlah")) }
     var isUpdating by remember { mutableStateOf(false) }
@@ -245,11 +248,11 @@ fun UpdateOrderDialog(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            color = Color(0xFF1A1A1A),
-            border = BorderStroke(1.dp, GlassBorder)
+            color = Color(0xFF0F172A), // SciFiBrandCard Dark Panel
+            border = BorderStroke(1.dp, SciFiBorderMedium)
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
-                Text("DETAIL & UPDATE KEDATANGAN", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = Color.White, fontFamily = OrbitronFontFamily)
+                Text("DETAIL & UPDATE KEDATANGAN", fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = Color.White, fontFamily = OrbitronFontFamily)
                 Spacer(Modifier.height(20.dp))
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -260,22 +263,22 @@ fun UpdateOrderDialog(
                     DetailRowOrder("Mesin", order.optString("mesin"))
                 }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = GlassBorder)
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = SciFiBorderLight)
 
                 FormLabel("TANGGAL DATANG")
                 ModernDatePickerField(tglDatang) { tglDatang = it }
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(14.dp))
 
                 FormLabel("JUMLAH DATANG")
                 ModernTextField(
                     value = jmlDatang,
-                    onValueChange = { jmlDatang = it },
+                    onValueChange = { jmlDatang = it }, // PERBAIKAN: Parameter diurutkan secara benar
                     placeholder = "Jumlah...",
                     icon = Icons.Default.Edit
                 )
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(28.dp))
 
                 ModernButton(
                     text = "UPDATE & CLOSE BON",
@@ -288,7 +291,7 @@ fun UpdateOrderDialog(
                 )
 
                 TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                    Text("Batal", color = GlassTextMuted)
+                    Text("Batal", color = SciFiTextMuted)
                 }
             }
         }
@@ -298,7 +301,7 @@ fun UpdateOrderDialog(
 @Composable
 fun DetailRowOrder(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Text(label, modifier = Modifier.weight(1f), fontSize = 13.sp, color = GlassTextMuted)
+        Text(label, modifier = Modifier.weight(1f), fontSize = 13.sp, color = SciFiTextMuted)
         Text(value, modifier = Modifier.weight(1.5f), fontSize = 13.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, color = Color.White)
     }
 }
@@ -308,10 +311,11 @@ fun HeaderCellOrder(text: String, width: Dp) {
     Text(
         text = text,
         modifier = Modifier.width(width).padding(horizontal = 4.dp),
-        color = GlassAccentCyan,
+        color = SciFiCyan,
         fontWeight = FontWeight.Bold,
-        fontSize = 12.sp,
-        textAlign = TextAlign.Center
+        fontSize = 11.sp,
+        textAlign = TextAlign.Center,
+        fontFamily = OrbitronFontFamily
     )
 }
 
@@ -320,7 +324,7 @@ fun DataCellOrder(text: String, width: Dp, textAlign: TextAlign = TextAlign.Cent
     Text(
         text = text.ifEmpty { "-" },
         modifier = Modifier.width(width).padding(vertical = 12.dp, horizontal = 8.dp),
-        fontSize = 12.sp,
+        fontSize = 11.sp,
         color = Color.White,
         textAlign = textAlign,
         maxLines = 2,

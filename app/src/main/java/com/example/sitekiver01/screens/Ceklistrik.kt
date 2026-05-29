@@ -21,34 +21,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.view.WindowCompat
 import com.example.sitekiver01.components.*
 import com.example.sitekiver01.ui.theme.*
 import com.example.sitekiver01.OrbitronFontFamily
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.*
 
-// GANTI DENGAN URL SCRIPT ANDA
+// URL SCRIPT GOOGLE SHEETS
 const val SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx4YbnLXFsnwDDV-Kso7Lx3Cu2R6tEYBkaEnRM_fnU-RBUoSWo-xZR9DIoHfzjwYd0/exec"
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,6 +54,7 @@ fun CekListrikScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val localDensity = LocalDensity.current // PENTING: Ambil density secara aman di level atas composable
 
     fun getCurrentDate(): String = String.format(Locale.getDefault(), "%02d/%02d/%04d", Calendar.getInstance().get(Calendar.DAY_OF_MONTH), Calendar.getInstance().get(Calendar.MONTH) + 1, Calendar.getInstance().get(Calendar.YEAR))
     fun getCurrentTime(): String = String.format(Locale.getDefault(), "%02d:%02d", Calendar.getInstance().get(Calendar.HOUR_OF_DAY), Calendar.getInstance().get(Calendar.MINUTE))
@@ -116,10 +110,10 @@ fun CekListrikScreen(
                 val url = URL(SCRIPT_URL)
                 val conn = url.openConnection() as HttpURLConnection
                 conn.instanceFollowRedirects = true
-                
+
                 val response = conn.inputStream.bufferedReader().use { it.readText() }
                 val json = JSONObject(response)
-                
+
                 if (json.has("prevData")) {
                     val prev = json.getJSONObject("prevData")
                     tanggalPrev = prev.optString("tanggal", "-")
@@ -141,7 +135,7 @@ fun CekListrikScreen(
                     for (i in 0 until petArray.length()) list.add(petArray.getString(i))
                     petugasList = list
                 }
-            } catch (e: Exception) { 
+            } catch (e: Exception) {
                 Log.e("CekListrik", "Error fetching data: ${e.message}", e)
             }
         }
@@ -154,9 +148,10 @@ fun CekListrikScreen(
     if (showConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
-            containerColor = Color(0xFF1A1A1A),
-            title = { Text(text = "Konfirmasi Data", fontWeight = FontWeight.Bold, color = Color.White) },
-            text = { Text(text = "Pastikan Data Anda Benar! Apakah Ingin Periksa Data Atau Simpan", color = GlassTextMuted) },
+            containerColor = Color(0xFF0F172A),
+            modifier = Modifier.border(1.dp, SciFiBorderLight, RoundedCornerShape(28.dp)),
+            title = { Text(text = "Konfirmasi Data", fontWeight = FontWeight.Bold, color = Color.White, fontFamily = OrbitronFontFamily) },
+            text = { Text(text = "Pastikan Data Anda Benar! Apakah Ingin Periksa Data Atau Simpan", color = SciFiTextMuted) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -178,39 +173,21 @@ fun CekListrikScreen(
                             isLoading = false
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = GlassAccentCyan)
-                ) { Text(text = "Simpan", color = Color.Black) }
+                    colors = ButtonDefaults.buttonColors(containerColor = SciFiCyan)
+                ) { Text(text = "Simpan", color = Color.Black, fontWeight = FontWeight.Bold) }
             },
-            dismissButton = { 
-                TextButton(onClick = { showConfirmDialog = false }) { 
-                    Text(text = "Cek", color = GlassTextMuted) 
-                } 
+            dismissButton = {
+                TextButton(onClick = { showConfirmDialog = false }) {
+                    Text(text = "Cek", color = SciFiTextMuted)
+                }
             }
         )
     }
 
     Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
-        // Animated Background Orbs
-        val orbOffset by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 100f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(8000, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            ), label = "orbMove"
-        )
 
-        Box(modifier = Modifier
-            .size(400.dp)
-            .offset(x = (-100).dp + orbOffset.dp, y = (-100).dp + (orbOffset/2).dp)
-            .background(GlassAccentPurple.copy(alpha = 0.15f), CircleShape)
-            .blur(100.dp))
-        Box(modifier = Modifier
-            .size(350.dp)
-            .align(Alignment.BottomEnd)
-            .offset(x = 100.dp - orbOffset.dp, y = 100.dp - (orbOffset/3).dp)
-            .background(GlassAccentCyan.copy(alpha = 0.12f), CircleShape)
-            .blur(80.dp))
+        // PONDASI UTAMA: Background Mesh Grid Animasi Global
+        SciFiBackground()
 
         Scaffold(
             containerColor = Color.Transparent,
@@ -233,14 +210,15 @@ fun CekListrikScreen(
                             color = Color.White,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
-                            fontFamily = OrbitronFontFamily
+                            fontFamily = OrbitronFontFamily,
+                            letterSpacing = 1.sp
                         )
                         Spacer(Modifier.weight(1f))
                         IconButton(
                             onClick = onNavigateToDetail,
                             modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)
-                        ) { 
-                            Icon(Icons.Default.History, "History", tint = Color.White) 
+                        ) {
+                            Icon(Icons.Default.History, "History", tint = Color.White)
                         }
                     }
                 }
@@ -256,17 +234,17 @@ fun CekListrikScreen(
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // INFO SECTION
                     GlassCard {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Info, null, tint = GlassAccentCyan, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.Info, null, tint = SciFiCyan, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
                                 Text("INFO TERAKHIR", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             }
-                            HorizontalDivider(color = GlassBorder)
+                            HorizontalDivider(color = SciFiBorderLight)
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 InfoItem("TANGGAL", tanggalPrev)
                                 InfoItem("JAM", jamPrev)
@@ -279,7 +257,7 @@ fun CekListrikScreen(
                     GlassCard {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Bolt, null, tint = GlassAccentCyan)
+                                Icon(Icons.Default.Bolt, null, tint = SciFiCyan)
                                 Spacer(Modifier.width(8.dp))
                                 Text("INPUT DATA KWH", color = Color.White, fontWeight = FontWeight.Bold)
                             }
@@ -308,7 +286,7 @@ fun CekListrikScreen(
                     GlassCard {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.SolarPower, null, tint = GlassAccentCyan)
+                                Icon(Icons.Default.SolarPower, null, tint = SciFiCyan)
                                 Spacer(Modifier.width(8.dp))
                                 Text("INPUT PLTS & GRID", color = Color.White, fontWeight = FontWeight.Bold)
                             }
@@ -329,7 +307,7 @@ fun CekListrikScreen(
 
                     // CALCULATION SECTION
                     if (isCalculated) {
-                        val statusColor = if (nilaiKWH > nilaiKVAR) GlassAccentCyan else Color(0xFFFF5252)
+                        val statusColor = if (nilaiKWH > nilaiKVAR) SciFiCyan else Color(0xFFFF5252)
                         val statusText = if (nilaiKWH > nilaiKVAR) "AMAN" else "POTENSI DENDA"
 
                         GlassCard(borderColor = statusColor.copy(alpha = 0.5f)) {
@@ -339,7 +317,7 @@ fun CekListrikScreen(
                                     Spacer(Modifier.width(8.dp))
                                     Text("HASIL PERHITUNGAN", color = Color.White, fontWeight = FontWeight.Bold)
                                 }
-                                HorizontalDivider(color = GlassBorder)
+                                HorizontalDivider(color = SciFiBorderLight)
                                 CalculationRow("NILAI KWH (0.62)", String.format("%.2f", nilaiKWH), Color.White)
                                 CalculationRow("NILAI KVAR", String.format("%.2f", nilaiKVAR), Color.White)
                                 CalculationRow("SELISIH", String.format("%.2f", selisih), statusColor)
@@ -370,7 +348,7 @@ fun CekListrikScreen(
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Column(Modifier.weight(1f)) {
-                                    Text("TANGGAL", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = GlassAccentCyan)
+                                    Text("TANGGAL", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SciFiCyan)
                                     OutlinedButton(
                                         onClick = {
                                             val c = Calendar.getInstance()
@@ -380,12 +358,12 @@ fun CekListrikScreen(
                                         },
                                         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                                         shape = RoundedCornerShape(12.dp),
-                                        border = BorderStroke(1.dp, GlassBorder),
+                                        border = BorderStroke(1.dp, SciFiBorderLight),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
                                     ) { Text(tanggalCurrent) }
                                 }
                                 Column(Modifier.weight(1f)) {
-                                    Text("JAM", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = GlassAccentCyan)
+                                    Text("JAM", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SciFiCyan)
                                     OutlinedButton(
                                         onClick = {
                                             val c = Calendar.getInstance()
@@ -395,20 +373,20 @@ fun CekListrikScreen(
                                         },
                                         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                                         shape = RoundedCornerShape(12.dp),
-                                        border = BorderStroke(1.dp, GlassBorder),
+                                        border = BorderStroke(1.dp, SciFiBorderLight),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
                                     ) { Text(jamCurrent) }
                                 }
                             }
 
                             Column {
-                                Text("PETUGAS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = GlassAccentCyan)
+                                Text("PETUGAS", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SciFiCyan)
                                 Box(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
                                     OutlinedButton(
                                         onClick = { showPetugasDropdown = true },
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(12.dp),
-                                        border = BorderStroke(1.dp, GlassBorder),
+                                        border = BorderStroke(1.dp, SciFiBorderLight),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
                                     ) {
                                         Text(petugasCurrent)
@@ -418,7 +396,7 @@ fun CekListrikScreen(
                                     DropdownMenu(
                                         expanded = showPetugasDropdown,
                                         onDismissRequest = { showPetugasDropdown = false },
-                                        modifier = Modifier.background(Color(0xFF1A1A1A)).border(1.dp, GlassBorder)
+                                        modifier = Modifier.background(Color(0xFF0F172A)).border(1.dp, SciFiBorderLight)
                                     ) {
                                         petugasList.forEach { p ->
                                             DropdownMenuItem(
@@ -432,22 +410,65 @@ fun CekListrikScreen(
                         }
                     }
 
-                    // SUBMIT BUTTON
-                    Button(
-                        onClick = {
-                            if (huheHCurrent.isEmpty() || huheHHCurrent.isEmpty() || huarHEHCurrent.isEmpty() || huarHHCurrent.isEmpty() || petugasCurrent == "Pilih") {
-                                android.widget.Toast.makeText(context, "Lengkapi Semua Data!", android.widget.Toast.LENGTH_SHORT).show()
-                            } else {
-                                showConfirmDialog = true
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = GlassAccentCyan),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
+                    // GLOW SUBMIT BUTTON (PERBAIKAN TOTAL: Konversi murni lewat density aman)
+                    val infiniteTransitionPulse = rememberInfiniteTransition(label = "btnPulseGlow")
+                    val glowBlur by infiniteTransitionPulse.animateFloat(
+                        initialValue = 6f,
+                        targetValue = 14f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1000, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ), label = "btnPulse"
+                    )
+
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(54.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        if (isLoading) CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(24.dp))
-                        else Text(if (editData == null) "KIRIM DATA" else "UPDATE DATA", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        // Perbaikan rumus pembagian densitas tanpa memicu 'unresolved reference run'
+                        val blurRadiusDp = (glowBlur / localDensity.density).dp
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.9f)
+                                .fillMaxHeight(0.8f)
+                                .background(SciFiCyan.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                                .blur(blurRadiusDp)
+                        )
+
+                        Button(
+                            onClick = {
+                                if (huheHCurrent.isEmpty() || huheHHCurrent.isEmpty() || huarHEHCurrent.isEmpty() || huarHHCurrent.isEmpty() || petugasCurrent == "Pilih") {
+                                    android.widget.Toast.makeText(context, "Lengkapi Semua Data!", android.widget.Toast.LENGTH_SHORT).show()
+                                } else {
+                                    showConfirmDialog = true
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Brush.horizontalGradient(colors = listOf(SciFiCyan, SciFiBlue)), RoundedCornerShape(16.dp))
+                                    .border(1.dp, SciFiBorderMedium, RoundedCornerShape(16.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isLoading) {
+                                    CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(24.dp), strokeWidth = 2.5.dp)
+                                } else {
+                                    Text(
+                                        text = if (editData == null) "KIRIM DATA" else "UPDATE DATA",
+                                        color = Color.Black,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        fontFamily = OrbitronFontFamily
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -460,21 +481,21 @@ fun CekListrikScreen(
 @Composable
 fun InfoItem(label: String, value: String) {
     Column {
-        Text(label, fontSize = 10.sp, color = GlassAccentCyan, fontWeight = FontWeight.Bold)
+        Text(label, fontSize = 10.sp, color = SciFiCyan, fontWeight = FontWeight.Bold)
         Text(value, fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Medium)
     }
 }
 
 @Composable
 fun GlassCard(
-    borderColor: Color = GlassBorder,
+    borderColor: Color = SciFiBorderLight,
     content: @Composable () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = Color.White.copy(alpha = 0.05f),
+        color = SciFiGlass,
         shape = RoundedCornerShape(24.dp),
-        border = BorderStroke(1.dp, borderColor)
+        border = BorderStroke(1.dp, Brush.verticalGradient(listOf(borderColor, Color.Transparent)))
     ) {
         content()
     }
@@ -483,25 +504,25 @@ fun GlassCard(
 @Composable
 fun ModernDualEditField(label: String, prev: String, curr: String, onValueChange: (String) -> Unit) {
     Column {
-        Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = GlassAccentCyan, modifier = Modifier.padding(bottom = 4.dp))
+        Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SciFiCyan, modifier = Modifier.padding(bottom = 4.dp))
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            border = BorderStroke(1.dp, GlassBorder),
+            border = BorderStroke(1.dp, SciFiBorderLight),
             shape = RoundedCornerShape(16.dp),
-            color = Color.White.copy(alpha = 0.05f)
+            color = Color.White.copy(alpha = 0.03f)
         ) {
             Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                Text(prev, fontSize = 10.sp, color = GlassTextMuted)
+                Text(prev, fontSize = 10.sp, color = SciFiTextMuted)
                 BasicTextField(
-                    value = curr, 
-                    onValueChange = onValueChange, 
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
-                    textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White), 
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), 
-                    cursorBrush = SolidColor(GlassAccentCyan),
-                    decorationBox = { innerTextField: @Composable () -> Unit -> 
-                        if (curr.isEmpty()) Text("0.0", color = GlassTextMuted.copy(alpha = 0.5f), fontSize = 15.sp)
-                        innerTextField() 
+                    value = curr,
+                    onValueChange = onValueChange,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    cursorBrush = SolidColor(SciFiCyan),
+                    decorationBox = { innerTextField: @Composable () -> Unit ->
+                        if (curr.isEmpty()) Text("0.0", color = SciFiTextMuted.copy(alpha = 0.4f), fontSize = 15.sp)
+                        innerTextField()
                     }
                 )
             }
@@ -512,7 +533,7 @@ fun ModernDualEditField(label: String, prev: String, curr: String, onValueChange
 @Composable
 fun CalculationRow(label: String, value: String, color: Color) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, fontSize = 13.sp, color = GlassTextMuted, fontWeight = FontWeight.Medium)
+        Text(label, fontSize = 13.sp, color = SciFiTextMuted, fontWeight = FontWeight.Medium)
         Text(value, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, color = color)
     }
 }
