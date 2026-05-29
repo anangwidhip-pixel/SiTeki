@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.window.Dialog
+import com.example.sitekiver01.components.SciFiBackground
 import com.example.sitekiver01.screens.*
 import com.example.sitekiver01.ui.theme.*
 import kotlinx.coroutines.Dispatchers
@@ -65,6 +66,7 @@ import java.util.*
 import kotlin.math.absoluteValue
 import androidx.compose.ui.tooling.preview.Preview as ComposePreview
 import kotlinx.coroutines.async
+//import com.example.sitekiver01.ui.components.SciFiBackground
 
 class MainActivity : ComponentActivity() {
 
@@ -83,7 +85,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        // Deep Link dari QR Code akan ditangani di AppNavigation
     }
 }
 
@@ -137,19 +138,16 @@ fun AppNavigation() {
     var selectedIndex by remember { mutableIntStateOf(0) }
     var showExitDialog by remember { mutableStateOf(false) }
     var showPerawatanPopup by remember { mutableStateOf(false) }
-
     var editDataListrik by remember { mutableStateOf<JSONObject?>(null) }
 
-    // IsiPerawatan State
     var isiPerawatanMachine by remember { mutableStateOf("") }
     var isiPerawatanDate by remember { mutableStateOf("") }
     var isiPerawatanWaktu by remember { mutableStateOf("") }
 
-    // Order Kerja State
     var currentOrderDetail by remember { mutableStateOf<OrderItem?>(null) }
     var currentOrderRowIndex by remember { mutableIntStateOf(-1) }
     var currentOrderMesin by remember { mutableStateOf("") }
-    var currentOrderMesinFromQR by remember { mutableStateOf("") }   // ← Deep Link QR Code
+    var currentOrderMesinFromQR by remember { mutableStateOf("") }// ← Deep Link QR Code
 
     LaunchedEffect(Unit) {
         val intent = (context as? ComponentActivity)?.intent
@@ -210,16 +208,17 @@ fun AppNavigation() {
     if (showExitDialog) {
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
-            containerColor = Color(0xFF1A1A1A),
-            title = { Text(text = "Konfirmasi Keluar", color = Color.White) },
-            text = { Text(text = "Apakah Anda akan keluar dari aplikasi?", color = GlassTextMuted) },
+            containerColor = SciFiGlass,
+            modifier = Modifier.border(1.dp, SciFiBorderLight, RoundedCornerShape(28.dp)),
+            title = { Text(text = "Konfirmasi Keluar", color = Color.White, fontFamily = OrbitronFontFamily) },
+            text = { Text(text = "Apakah Anda akan keluar dari aplikasi?", color = SciFiTextMuted) },
             confirmButton = {
                 Button(onClick = { (context as? Activity)?.finish() }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) {
                     Text("Yes", color = Color.White)
                 }
             },
             dismissButton = {
-                OutlinedButton(onClick = { showExitDialog = false }, border = BorderStroke(1.dp, GlassBorder)) {
+                OutlinedButton(onClick = { showExitDialog = false }, border = BorderStroke(1.dp, SciFiBorderLight)) {
                     Text("No", color = Color.White)
                 }
             }
@@ -229,22 +228,17 @@ fun AppNavigation() {
     if (showPerawatanPopup) {
         AlertDialog(
             onDismissRequest = { showPerawatanPopup = false },
-            containerColor = Color(0xFF1A1A1A),
-            title = { Text(text = "Pilih Halaman", color = Color.White) },
-            text = { Text(text = "Apakah Ingin Melihat Jadwal?", color = GlassTextMuted) },
+            containerColor = SciFiGlass,
+            modifier = Modifier.border(1.dp, SciFiBorderLight, RoundedCornerShape(28.dp)),
+            title = { Text(text = "Pilih Halaman", color = Color.White, fontFamily = OrbitronFontFamily) },
+            text = { Text(text = "Apakah Ingin Melihat Jadwal?", color = SciFiTextMuted) },
             confirmButton = {
-                Button(onClick = {
-                    showPerawatanPopup = false
-                    currentScreen = Screen.JadPerawatan
-                }, colors = ButtonDefaults.buttonColors(containerColor = GlassAccentCyan)) {
-                    Text("Ya", color = Color.Black)
+                Button(onClick = { showPerawatanPopup = false; currentScreen = Screen.JadPerawatan }, colors = ButtonDefaults.buttonColors(containerColor = SciFiCyan)) {
+                    Text("Ya", color = Color.Black, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                OutlinedButton(onClick = {
-                    showPerawatanPopup = false
-                    currentScreen = Screen.Perawatan
-                }, border = BorderStroke(1.dp, GlassBorder)) {
+                OutlinedButton(onClick = { showPerawatanPopup = false; currentScreen = Screen.Perawatan }, border = BorderStroke(1.dp, SciFiBorderLight)) {
                     Text("Tidak", color = Color.White)
                 }
             }
@@ -254,37 +248,27 @@ fun AppNavigation() {
     val showBottomBar = currentScreen in listOf(Screen.Dashboard, Screen.QRScanner)
 
     Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
-        // Orbs Background
-        val infiniteTransition = rememberInfiniteTransition(label = "orbs")
-        val orbOffset by infiniteTransition.animateFloat(
-            initialValue = 0f, targetValue = 100f,
-            animationSpec = infiniteRepeatable(animation = tween(8000, easing = LinearEasing), repeatMode = RepeatMode.Reverse),
-            label = "orbOffset"
-        )
-        Box(modifier = Modifier.size(400.dp).offset(x = (-100).dp + orbOffset.dp, y = (-100).dp + (orbOffset/2).dp)
-            .background(GlassAccentPurple.copy(alpha = 0.15f), CircleShape).blur(100.dp))
-        Box(modifier = Modifier.size(350.dp).align(Alignment.BottomEnd).offset(x = 100.dp - orbOffset.dp, y = 100.dp - (orbOffset/3).dp)
-            .background(GlassAccentCyan.copy(alpha = 0.12f), CircleShape).blur(80.dp))
-
-        Scaffold(
-            containerColor = Color.Transparent,
-            bottomBar = {
-                if (showBottomBar) {
-                    CustomBottomNavigation(
-                        selectedIndex = selectedIndex,
-                        onItemSelected = { index ->
-                            selectedIndex = index
-                            when (index) {
-                                0 -> currentScreen = Screen.Dashboard
-                                1 -> showPerawatanPopup = true
-                                2 -> currentScreen = Screen.QRScanner
-                                3 -> currentScreen = Screen.LapKerja
-                                4 -> { /* Akun - bisa ditambah nanti */ }
+        // PONDASI LAYAR UTAMA (Background lokal drawable, grid & particle otomatis ter-load di sini)
+            SciFiBackground()
+            Scaffold(
+                containerColor = Color.Transparent, // Menghilangkan warna background bawaan Scaffold
+                bottomBar = {
+                    if (showBottomBar) {
+                        CustomBottomNavigation(
+                            selectedIndex = selectedIndex,
+                            onItemSelected = { index ->
+                                selectedIndex = index
+                                when (index) {
+                                    0 -> currentScreen = Screen.Dashboard
+                                    1 -> showPerawatanPopup = true
+                                    2 -> currentScreen = Screen.QRScanner
+                                    3 -> currentScreen = Screen.LapKerja
+                                    4 -> { /* Akun */ }
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
-            }
         ) { innerPadding ->
             Box(modifier = Modifier.fillMaxSize()) {
                 val modifierWithPadding = Modifier.padding(bottom = if (showBottomBar) innerPadding.calculateBottomPadding() else 0.dp)
@@ -534,27 +518,21 @@ fun DashboardScreen(
         openOrders = fetchOpenOrders(apiUrl)
         isLoadingOrders = false
     }
-
-    Column(modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        TopHeader(
-            openOrders = openOrders,
-            onOrderKerjaClick = onOrderKerjaClick,
-            onNavigateToWebView = onNavigateToWebView,
-            onNavigateToIsiPerawatan = onNavigateToIsiPerawatan
-        )
+// Column dibuat transparan penuh agar background tidak tertutup balok warna hitam solid
+    Column(modifier = modifier.fillMaxSize().background(Color.Transparent).verticalScroll(rememberScrollState())) {
+        TopHeader(openOrders = openOrders, onOrderKerjaClick = onOrderKerjaClick, onNavigateToWebView = onNavigateToWebView, onNavigateToIsiPerawatan = onNavigateToIsiPerawatan)
         Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-            Text(text = "Order Kerja", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+            Text(text = "Order Kerja", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp, fontFamily = OrbitronFontFamily)
             Spacer(modifier = Modifier.height(16.dp))
 
             if (isLoadingOrders) {
                 Surface(
                     modifier = Modifier.fillMaxWidth().height(160.dp),
-                    shape = RoundedCornerShape(32.dp),
-                    color = GlassSurface
+                    shape = RoundedCornerShape(28.dp),
+                    color = SciFiGlass,
+                    border = BorderStroke(1.dp, SciFiBorderLight)
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = GlassAccentCyan)
-                    }
+                    Box(contentAlignment = Alignment.Center) { CircularProgressIndicator(color = SciFiCyan) }
                 }
             } else {
                 MachineCard(
@@ -593,77 +571,49 @@ fun DashboardScreen(
 }
 
 @Composable
-fun CustomBottomNavigation(
-    modifier: Modifier = Modifier,
-    selectedIndex: Int,
-    onItemSelected: (Int) -> Unit
-) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(bottom = 20.dp, start = 24.dp, end = 24.dp)
-            .height(88.dp),
-        contentAlignment = Alignment.BottomCenter
-    ) {
-        Box(modifier = Modifier.fillMaxWidth().height(68.dp)) {
-            Row(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+fun CustomBottomNavigation(modifier: Modifier = Modifier, selectedIndex: Int, onItemSelected: (Int) -> Unit) {
+    Box(modifier = modifier.fillMaxWidth().padding(bottom = 16.dp, start = 16.dp, end = 16.dp).height(80.dp), contentAlignment = Alignment.BottomCenter) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().height(68.dp),
+            shape = RoundedCornerShape(24.dp),
+            color = SciFiGlass,
+            border = BorderStroke(1.dp, SciFiBorderLight)
+        ) {
+            Row(modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
                 NavItem(Icons.Rounded.Dashboard, "Home", selectedIndex == 0) { onItemSelected(0) }
                 NavItem(Icons.Rounded.SettingsSuggest, "Maint", selectedIndex == 1) { onItemSelected(1) }
-                Spacer(modifier = Modifier.width(60.dp))
+                Spacer(modifier = Modifier.width(68.dp))
                 NavItem(Icons.AutoMirrored.Rounded.Assignment, "Lap", selectedIndex == 3) { onItemSelected(3) }
                 NavItem(Icons.Rounded.ManageAccounts, "Akun", selectedIndex == 4) { onItemSelected(4) }
             }
         }
 
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = (-8).dp)
-                .size(72.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(modifier = Modifier.size(60.dp).background(GlassAccentCyan.copy(alpha = 0.3f), CircleShape).blur(15.dp))
+        // FAB Pulse Glow Effect Bergaya HTML Partikel
+        val infinitePulse = rememberInfiniteTransition(label = "pulse")
+        val glowSize by infinitePulse.animateFloat(initialValue = 10f, targetValue = 22f, animationSpec = infiniteRepeatable(tween(1200, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "glow")
 
+        Box(modifier = Modifier.align(Alignment.TopCenter).offset(y = (-12).dp).size(68.dp), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.size(54.dp).background(SciFiCyan.copy(alpha = 0.35f), CircleShape).blur(glowSize.dp))
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(GlassAccentCyan, Color(0xFF00B8D4), Color(0xFF0097A7))
-                        ),
-                        shape = CircleShape
-                    )
-                    .clickable { onItemSelected(2) },
+                modifier = Modifier.fillMaxSize().background(Brush.horizontalGradient(colors = listOf(SciFiCyan, SciFiBlue)), CircleShape).border(1.dp, SciFiBorderMedium, CircleShape).clickable { onItemSelected(2) },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.QrCodeScanner,
-                    contentDescription = "QR Scanner",
-                    tint = Color.Black,
-                    modifier = Modifier.size(34.dp)
-                )
+                Icon(imageVector = Icons.Rounded.QrCodeScanner, contentDescription = "QR Scanner", tint = Color.Black, modifier = Modifier.size(30.dp))
             }
         }
     }
 }
 
 @Composable
-fun NavItem(icon: Any, label: String, isSelected: Boolean, hasBadge: Boolean = false, onClick: () -> Unit) {
-    val animatedColor by animateColorAsState(targetValue = if (isSelected) GlassAccentCyan else Color.White.copy(alpha = 0.4f), animationSpec = tween(300), label = "color")
-    val animatedScale by animateFloatAsState(targetValue = if (isSelected) 1.2f else 1f, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow), label = "scale")
-    Column(modifier = Modifier.width(64.dp).clip(RoundedCornerShape(20.dp)).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        BadgedBox(badge = { if (hasBadge) { Box(modifier = Modifier.size(8.dp).background(Color.Red, CircleShape)) } }) {
-            Icon(imageVector = when (icon) { is ImageVector -> icon else -> Icons.AutoMirrored.Rounded.HelpOutline }, contentDescription = label, tint = animatedColor, modifier = Modifier.size(26.dp).graphicsLayer { scaleX = animatedScale; scaleY = animatedScale })
+fun NavItem(icon: Any, label: String, isSelected: Boolean, onClick: () -> Unit) {
+    val animatedColor by animateColorAsState(targetValue = if (isSelected) SciFiCyan else Color.White.copy(alpha = 0.4f), animationSpec = tween(300), label = "color")
+    val animatedScale by animateFloatAsState(targetValue = if (isSelected) 1.15f else 1f, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy), label = "scale")
+    Column(modifier = Modifier.width(56.dp).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Icon(imageVector = icon as ImageVector, contentDescription = label, tint = animatedColor, modifier = Modifier.size(24.dp).graphicsLayer { scaleX = animatedScale; scaleY = animatedScale })
+        Spacer(modifier = Modifier.height(2.dp))
+        AnimatedVisibility(visible = isSelected, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+            Text(text = label, color = SciFiCyan, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = OrbitronFontFamily)
         }
-        Spacer(modifier = Modifier.height(4.dp))
-        AnimatedVisibility(visible = isSelected, enter = fadeIn() + expandVertically(expandFrom = Alignment.Top), exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top)) {
-            Text(text = label, color = GlassAccentCyan, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, fontFamily = OrbitronFontFamily)
-        }
-        if (!isSelected) { Box(modifier = Modifier.height(14.dp)) }
     }
 }
 
