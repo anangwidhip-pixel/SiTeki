@@ -73,7 +73,7 @@ fun StokPartScreen(
                 val filterBulan = selectedBulans.joinToString(", ") { "$it $currentYear" }
                 val encodedBulan = URLEncoder.encode(filterBulan, "UTF-8")
 
-                val scriptUrl = "https://script.google.com/macros/s/AKfycbxStokPartScriptIDHere/exec"
+                val scriptUrl = "https://script.google.com/macros/s/AKfycbxHnZzPQ3jCrMU3tvRGTiQnBIZe7pETN7iWr8e4amU4cdgi22TVzEFjB84ZXUohBDvD/exec"
                 val urlString = "$scriptUrl?action=getStokPart&bulan=$encodedBulan"
 
                 val response = URL(urlString).readText()
