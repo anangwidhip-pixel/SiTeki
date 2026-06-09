@@ -1,16 +1,38 @@
 package com.example.sitekiver01
 
 enum class Screen {
-    Dashboard, Perawatan, Katalog, WebView, QRScanner, KPI,
-    DetailPerawatan, DetailDowntime, Listrik, Detaillistrik,
-    LapKerja, IsiLaporan, JadPerawatan, StokPart, OrderPart,
-    DaftarOrder, IsiPerawatan,
+    // Otentikasi Siber & Manajemen Akses
+    Login,
+    ManagementUser,
 
-    // Order Kerja System
+    IsiLemburan,
+
+    // Core System Utama SiTeki
+    Dashboard,
+    Perawatan,
+    Katalog,
+    WebView,
+    QRScanner,
+    KPI,
+    DetailPerawatan,
+    DetailDowntime,
+    Listrik,
+    Detaillistrik,
+    LapKerja,
+    IsiLaporan,
+    JadPerawatan,
+    StokPart,
+    OrderPart,
+    DaftarOrder,
+    IsiPerawatan,
+
+    // Order Kerja System & Logistik Terminal PT. RAJA BESI
     DetailOrder,
     PenyelesaianOrder,
     BuatOrderKerja,
     OrderKerjaList,
+    RekapAdmin,
     Lainnya,
     Stang
+
 }

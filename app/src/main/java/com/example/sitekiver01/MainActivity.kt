@@ -25,7 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.automirrored.rounded.Assignment
-import androidx.compose.material.icons.automirrored.rounded.HelpOutline
 import androidx.compose.material.icons.automirrored.rounded.ListAlt
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.*
@@ -36,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -68,8 +66,8 @@ import java.util.*
 import kotlin.math.absoluteValue
 import androidx.compose.ui.tooling.preview.Preview as ComposePreview
 import kotlinx.coroutines.async
-//import com.example.sitekiver01.ui.components.SciFiBackground
 
+const val STANG_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyFRP2WDOj-Vi2v-aB73VGkSycD3KHbCwiMtoS7BnXpPcAX3_4-YyvczwYd4_vIxQQ/exec"
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -97,7 +95,6 @@ suspend fun fetchOpenOrders(url: String): List<OrderItem> {
             val response = URL(url).readText().trim()
             Log.d("SiTekiData", "Response: $response")
 
-            // CEK: Jika respon bukan JSON Array (tidak diawali '['), maka berhenti
             if (!response.startsWith("[")) {
                 Log.e("SiTekiData", "Format Salah: Respon bukan JSON Array")
                 return@withContext emptyList()
@@ -132,11 +129,12 @@ suspend fun fetchOpenOrders(url: String): List<OrderItem> {
 @Composable
 fun AppNavigation() {
     val context = LocalContext.current
-
-    var currentScreen by remember { mutableStateOf(Screen.Dashboard) }
+    val navController = androidx.navigation.compose.rememberNavController()
+    // REVISI: Mengubah default screen awal menuju Screen.Login demi keamanan otentikasi
+    var currentScreen by remember { mutableStateOf(Screen.Login) }
     var webUrl by remember { mutableStateOf("") }
     var webTitle by remember { mutableStateOf("") }
-    var previousScreen by remember { mutableStateOf(Screen.Dashboard) }
+    var previousScreen by remember { mutableStateOf(Screen.Login) }
     var selectedIndex by remember { mutableIntStateOf(0) }
     var showExitDialog by remember { mutableStateOf(false) }
     var showPerawatanPopup by remember { mutableStateOf(false) }
@@ -149,7 +147,7 @@ fun AppNavigation() {
     var currentOrderDetail by remember { mutableStateOf<OrderItem?>(null) }
     var currentOrderRowIndex by remember { mutableIntStateOf(-1) }
     var currentOrderMesin by remember { mutableStateOf("") }
-    var currentOrderMesinFromQR by remember { mutableStateOf("") }// ← Deep Link QR Code
+    var currentOrderMesinFromQR by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         val intent = (context as? ComponentActivity)?.intent
@@ -157,7 +155,6 @@ fun AppNavigation() {
         val uriString = data?.toString() ?: ""
 
         when {
-            // Deep Link (siteki://buatorder?...)
             data?.scheme == "siteki" && data.host == "buatorder" -> {
                 val namaMesin = data.getQueryParameter("namaMesin") ?: ""
                 if (namaMesin.isNotEmpty()) {
@@ -167,7 +164,6 @@ fun AppNavigation() {
                 }
             }
 
-            // Web Link dari QR Code (script.google.com)
             uriString.contains("script.google.com") -> {
                 val namaMesin = data?.getQueryParameter("mesin") ?: ""
                 if (namaMesin.isNotEmpty()) {
@@ -196,6 +192,7 @@ fun AppNavigation() {
 
     BackHandler {
         when (currentScreen) {
+            Screen.Login -> (context as? Activity)?.finish() // Keluar aplikasi jika menekan back di halaman login
             Screen.Dashboard -> showExitDialog = true
             Screen.WebView -> currentScreen = previousScreen
             Screen.DetailOrder, Screen.PenyelesaianOrder, Screen.BuatOrderKerja,
@@ -234,7 +231,7 @@ fun AppNavigation() {
                     .fillMaxWidth(0.9f)
                     .wrapContentHeight(),
                 shape = RoundedCornerShape(28.dp),
-                color = Color(0xFF0F172A), // Latar belakang gelap padat untuk memblokir teks belakang
+                color = Color(0xFF0F172A),
                 border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
             ) {
                 Column(
@@ -242,7 +239,6 @@ fun AppNavigation() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // JUDUL DIALOG
                     Text(
                         text = "PILIH HALAMAN",
                         fontSize = 16.sp,
@@ -252,7 +248,6 @@ fun AppNavigation() {
                         letterSpacing = 1.sp
                     )
 
-                    // ISI TEKS PERTANYAAN ASLI
                     Text(
                         text = "Apakah Ingin Melihat Jadwal?",
                         fontSize = 13.sp,
@@ -263,12 +258,10 @@ fun AppNavigation() {
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // TOMBOL AKSI PILIHAN
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // TOMBOL JADWAL (Pilihan "Ya" -> Screen.JadPerawatan)
                         Button(
                             onClick = {
                                 showPerawatanPopup = false
@@ -288,7 +281,6 @@ fun AppNavigation() {
                             )
                         }
 
-                        // TOMBOL PERAWATAN (Pilihan "Tidak" -> Screen.Perawatan)
                         OutlinedButton(
                             onClick = {
                                 showPerawatanPopup = false
@@ -313,35 +305,45 @@ fun AppNavigation() {
         }
     }
 
-    val showBottomBar = currentScreen in listOf(Screen.Dashboard, Screen.QRScanner)
+    // REVISI: Bottom bar hanya dirender jika user sukses login
+    val showBottomBar = currentScreen in listOf(Screen.Dashboard, Screen.QRScanner) && UserSession.isLoggedIn
 
     Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
-        // PONDASI LAYAR UTAMA (Background lokal drawable, grid & particle otomatis ter-load di sini)
-            SciFiBackground()
-            Scaffold(
-                containerColor = Color.Transparent, // Menghilangkan warna background bawaan Scaffold
-                bottomBar = {
-                    if (showBottomBar) {
-                        CustomBottomNavigation(
-                            selectedIndex = selectedIndex,
-                            onItemSelected = { index ->
-                                selectedIndex = index
-                                when (index) {
-                                    0 -> currentScreen = Screen.Dashboard
-                                    1 -> showPerawatanPopup = true
-                                    2 -> currentScreen = Screen.QRScanner
-                                    3 -> currentScreen = Screen.LapKerja
-                                    4 -> { /* Akun */ }
-                                }
+        SciFiBackground()
+        Scaffold(
+            containerColor = Color.Transparent,
+            bottomBar = {
+                if (showBottomBar) {
+                    CustomBottomNavigation(
+                        selectedIndex = selectedIndex,
+                        onItemSelected = { index ->
+                            selectedIndex = index
+                            when (index) {
+                                0 -> currentScreen = Screen.Dashboard
+                                1 -> showPerawatanPopup = true
+                                2 -> currentScreen = Screen.QRScanner
+                                3 -> currentScreen = Screen.LapKerja
+                                4 -> { /* Akun */ }
                             }
-                        )
-                    }
+                        }
+                    )
                 }
+            }
         ) { innerPadding ->
             Box(modifier = Modifier.fillMaxSize()) {
                 val modifierWithPadding = Modifier.padding(bottom = if (showBottomBar) innerPadding.calculateBottomPadding() else 0.dp)
 
                 when (currentScreen) {
+                    // REVISI: Menambahkan gerbang masuk otentikasi login
+                    Screen.Login -> {
+                        LoginScreen(
+                            onLoginSuccess = {
+                                currentScreen = Screen.Dashboard
+                                selectedIndex = 0
+                            }
+                        )
+                    }
+
                     Screen.Dashboard -> {
                         DashboardScreen(
                             modifier = modifierWithPadding,
@@ -360,7 +362,12 @@ fun AppNavigation() {
                             onNavigateToWebView = navigateToWebView,
                             onNavigateToOrderKerjaList = { currentScreen = Screen.OrderKerjaList },
                             onNavigateToIsiPerawatan = onNavigateToIsiPerawatan,
-                            onNavigateToLainnya = { currentScreen = Screen.Lainnya }
+                            onNavigateToLainnya = { currentScreen = Screen.Lainnya },
+                            onNavigateToManagementUser = { currentScreen = Screen.ManagementUser },
+                            onLogout = {
+                                UserSession.logout()
+                                currentScreen = Screen.Login
+                            }
                         )
                     }
 
@@ -399,7 +406,15 @@ fun AppNavigation() {
                             onSuccess = { currentScreen = Screen.Dashboard }
                         )
                     }
-
+                    Screen.ManagementUser -> {
+                        UserManagementScreen(
+                            onBack = { currentScreen = Screen.Dashboard },
+                            onSuccess = {
+                                // Setelah sukses sinkronisasi data, kembalikan ke Dashboard atau beri aksi lain
+                                currentScreen = Screen.Dashboard
+                            }
+                        )
+                    }
                     Screen.BuatOrderKerja -> {
                         BuatOrderKerjaScreen(
                             machineNameFromQR = currentOrderMesinFromQR,
@@ -505,7 +520,28 @@ fun AppNavigation() {
                     Screen.Lainnya -> {
                         LainnyaScreen(
                             onBack = { currentScreen = Screen.Dashboard },
-                            onNavigateToKatalog = { currentScreen = Screen.Katalog }
+                            onNavigateToKatalog = { currentScreen = Screen.Katalog },
+                            onNavigateToLemburan = { currentScreen = Screen.IsiLemburan },
+                            // Tambahkan navigasi baru ke User Management
+                            onNavigateToUserMgmt = {
+                                if (UserSession.role == "Admin") {
+                                    currentScreen = Screen.ManagementUser
+                                } else {
+                                    Toast.makeText(context, "Hanya Admin yang memiliki akses!", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        )
+                    }
+                    Screen.ManagementUser -> {
+                        UserManagementScreen(
+                            onBack = { currentScreen = Screen.Lainnya } // Memastikan state berubah ke 'Lainnya'
+                        )
+                    }
+
+                    Screen.IsiLemburan -> {
+                        IsiLemburanScreen(
+                            onBack = { currentScreen = Screen.Lainnya },
+                            onNavigateToRekap = { currentScreen = Screen.RekapAdmin } // Navigasi via state
                         )
                     }
                     Screen.Stang -> {
@@ -514,7 +550,15 @@ fun AppNavigation() {
                         )
                     }
 
-                    // Safety net
+                    Screen.RekapAdmin -> {
+                        RekapAdminScreen(
+                            onBack = { currentScreen = Screen.IsiLemburan }
+                        )
+                    }
+
+
+                    // REVISI: Layar Manajemen Pendaftaran Karyawan Baru
+
                     else -> {
                         currentScreen = Screen.Dashboard
                     }
@@ -575,7 +619,9 @@ fun DashboardScreen(
     onNavigateToStokPart: () -> Unit,
     onNavigateToWebView: (String, String) -> Unit,
     onNavigateToIsiPerawatan: (String, String, String) -> Unit,
-    onNavigateToLainnya: () -> Unit
+    onNavigateToLainnya: () -> Unit,
+    onNavigateToManagementUser: () -> Unit,
+    onLogout: () -> Unit
 ) {
     val apiUrl = "https://script.google.com/macros/s/AKfycbyP84TUvoujsa0uuCYLR172Ft7EHzY_ofH_XkmJnYh1Y3qDICdSnlBBkGf9VU1WivQ/exec?action=getAllOrders"
     var openOrders by remember { mutableStateOf<List<OrderItem>>(emptyList()) }
@@ -586,9 +632,19 @@ fun DashboardScreen(
         openOrders = fetchOpenOrders(apiUrl)
         isLoadingOrders = false
     }
-// Column dibuat transparan penuh agar background tidak tertutup balok warna hitam solid
+
     Column(modifier = modifier.fillMaxSize().background(Color.Transparent).verticalScroll(rememberScrollState())) {
         TopHeader(openOrders = openOrders, onOrderKerjaClick = onOrderKerjaClick, onNavigateToWebView = onNavigateToWebView, onNavigateToIsiPerawatan = onNavigateToIsiPerawatan)
+
+        // REVISI: HUD Ringkas untuk Log Out siber akun di bagian atas Dashboard
+        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onLogout) {
+                Icon(Icons.Default.Logout, contentDescription = null, tint = SciFiSaturday, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("LOGOUT SYSTEM", color = SciFiSaturday, fontSize = 11.sp, fontFamily = OrbitronFontFamily, fontWeight = FontWeight.Bold)
+            }
+        }
+
         Column(modifier = Modifier.padding(horizontal = 20.dp)) {
             Text(text = "Order Kerja", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp, fontFamily = OrbitronFontFamily)
             Spacer(modifier = Modifier.height(16.dp))
@@ -629,7 +685,8 @@ fun DashboardScreen(
             onLapKerjaClick = onNavigateToLapKerja,
             onStokPartClick = onNavigateToStokPart,
             onOrderKerjaClick = onNavigateToOrderKerjaList,
-            onNavigateToLainnya = onNavigateToLainnya
+            onNavigateToLainnya = onNavigateToLainnya,
+            onNavigateToManagementUser = onNavigateToManagementUser
         )
 
         NewsSection()
@@ -656,7 +713,6 @@ fun CustomBottomNavigation(modifier: Modifier = Modifier, selectedIndex: Int, on
         contentAlignment = Alignment.BottomCenter
     ) {
 
-        // ==================== GEOMETRI SHAPE DOCK NAVIGASI ====================
         val cyberDockShape = GenericShape { size, _ ->
             val w = size.width
             val h = size.height
@@ -666,11 +722,9 @@ fun CustomBottomNavigation(modifier: Modifier = Modifier, selectedIndex: Int, on
             val notchH = with(density) { 32.dp.toPx() }
             val r = cornerRadiusPx
 
-            // Start dari sudut kiri atas
             moveTo(r, 0f)
             lineTo(center - notchW, 0f)
 
-            // Lekukan Tengah (Notch)
             cubicTo(
                 center - (notchW * 0.6f), 0f,
                 center - (notchW * 0.7f), notchH,
@@ -684,47 +738,37 @@ fun CustomBottomNavigation(modifier: Modifier = Modifier, selectedIndex: Int, on
 
             lineTo(w - r, 0f)
 
-            // Rounded Kanan Atas
             arcTo(Rect(w - 2 * r, 0f, w, 2 * r), 270f, 90f, false)
 
-            // Sisi Kanan & Kanan Bawah
             lineTo(w, h - r)
             arcTo(Rect(w - 2 * r, h - 2 * r, w, h), 0f, 90f, false)
 
-            // Sisi Bawah & Kiri Bawah
             lineTo(r, h)
             arcTo(Rect(0f, h - 2 * r, 2 * r, h), 90f, 90f, false)
 
-            // Sisi Kiri & Kiri Atas
             lineTo(0f, r)
             arcTo(Rect(0f, 0f, 2 * r, 2 * r), 180f, 90f, false)
             close()
         }
 
-        // ==================== SURFACE BACKDROP ====================
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(barHeight)
                 .graphicsLayer {
                     shape = cyberDockShape
-                    clip = true // Memotong isi background agar mengikuti lekukan
+                    clip = true
                 }
                 .drawBehind {
                     val w = size.width
                     val center = w / 2
                     val notchW = with(density) { 46.dp.toPx() }
                     val notchH = with(density) { 32.dp.toPx() }
-                    val r = cornerRadiusPx
 
                     val strokeThickness = 3.5f
-                    // PENTING: Turunkan offset Y sedikit (setengah dari tebal stroke)
-                    // agar tidak terpotong cacat oleh clip bounds di koordinat 0f
                     val offsetY = strokeThickness / 2
 
-                    // Jalur gambar neon khusus area Notch Tengah saja agar kiri-kanan bersih total
                     val borderPath = androidx.compose.ui.graphics.Path().apply {
-                        // Mulai agak kiri sebelum lekukan notch
                         moveTo(center - notchW - 20f, offsetY)
                         lineTo(center - notchW, offsetY)
                         cubicTo(
@@ -737,11 +781,9 @@ fun CustomBottomNavigation(modifier: Modifier = Modifier, selectedIndex: Int, on
                             center + (notchW * 0.6f), offsetY,
                             center + notchW, offsetY
                         )
-                        // Berakhir agak kanan setelah lekukan notch
                         lineTo(center + notchW + 20f, offsetY)
                     }
 
-                    // Gambar garis neon pendaran di area tengah saja
                     drawPath(
                         path = borderPath,
                         brush = Brush.horizontalGradient(
@@ -757,7 +799,7 @@ fun CustomBottomNavigation(modifier: Modifier = Modifier, selectedIndex: Int, on
                     )
                 },
             color = Color(0xCC070D19),
-            border = null // Pastikan border bawaan material null agar tidak memunculkan garis putih tipis liar
+            border = null
         ) {
             Row(
                 modifier = Modifier
@@ -776,7 +818,6 @@ fun CustomBottomNavigation(modifier: Modifier = Modifier, selectedIndex: Int, on
             }
         }
 
-        // ==================== CORE REACTOR FAB ====================
         val infinitePulse = rememberInfiniteTransition(label = "reactorPulse")
         val glowRadius by infinitePulse.animateFloat(
             initialValue = 10f,
@@ -846,7 +887,7 @@ fun NavItem(icon: Any, label: String, isSelected: Boolean, onClick: () -> Unit) 
             .width(64.dp)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null, // Menghilangkan ripple bawaan Android
+                indication = null,
                 onClick = onClick
             ),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1379,12 +1420,31 @@ fun MaintenanceTable(data: List<MaintenanceTask>, onActionClick: (MaintenanceTas
 
 @Composable
 fun MachineCard(orders: List<String>, buttonText: String, onButtonClick: (Int) -> Unit = {}) {
-    val pagerState = rememberPagerState(pageCount = { orders.size })
+    // PROTEKSI SIBER: Pastikan jumlah halaman minimal 1 agar PagerState tidak memicu Force Close
+    val safePageCount = if (orders.isEmpty()) 1 else orders.size
+    val pagerState = rememberPagerState(pageCount = { safePageCount })
     val isPreview = LocalInspectionMode.current
-    LaunchedEffect(Unit) { if (!isPreview) { while (true) { delay(5000); pagerState.animateScrollToPage((pagerState.currentPage + 1) % orders.size, animationSpec = tween(1000)) } } }
+
+    LaunchedEffect(orders) {
+        // Hanya jalankan auto-scroll jika data orders benar-benar ada dan lebih dari 1 halaman
+        if (!isPreview && orders.size > 1) {
+            while (true) {
+                delay(5000)
+                try {
+                    val nextPage = (pagerState.currentPage + 1) % orders.size
+                    pagerState.animateScrollToPage(nextPage, animationSpec = tween(1000))
+                } catch (e: Exception) {
+                    // Mencegah crash jika data berubah mendadak di background thread
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
+
     val density = LocalDensity.current
     val btnW = 158.dp; val btnH = 29.dp; val cardR = 32.dp
     val btnWidthPx = with(density) { btnW.toPx() }; val btnHeightPx = with(density) { btnH.toPx() }; val cardRadiusPx = with(density) { cardR.toPx() }; val gapPx = with(density) { 8.dp.toPx() }; val br = btnHeightPx / 2
+
     Box(modifier = Modifier.fillMaxWidth().height(160.dp)) {
         val notchedShape = GenericShape { size, _ ->
             if (size.width > 0 && size.height > 0) {
@@ -1396,13 +1456,41 @@ fun MachineCard(orders: List<String>, buttonText: String, onButtonClick: (Int) -
             Row(modifier = Modifier.fillMaxSize().padding(start = 24.dp, end = 24.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(painter = painterResource(id = R.drawable.mesin), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(86.dp))
                 Spacer(modifier = Modifier.width(20.dp)); Box(modifier = Modifier.width(1.5.dp).height(64.dp).background(Color.White.copy(alpha = 0.2f))); Spacer(modifier = Modifier.width(20.dp))
+
+                // Amankan pembacaan index pager agar tidak OutOfBounds
                 HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { page ->
-                    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) { Text(text = orders[page], fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                    val textTampil = if (orders.isEmpty()) "Tidak ada data" else if (page < orders.size) orders[page] else "Memuat data..."
+                    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
+                        Text(
+                            text = textTampil,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = Color.White,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }
-        Button(onClick = { onButtonClick(pagerState.currentPage) }, modifier = Modifier.align(Alignment.BottomEnd).width(btnW).height(btnH), shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent), contentPadding = PaddingValues(0.dp)) {
-            Box(modifier = Modifier.fillMaxSize().background(brush = Brush.horizontalGradient(colors = listOf(GlassAccentCyan, Color(0xFF0054B2))), shape = CircleShape), contentAlignment = Alignment.Center) { Text(text = buttonText, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 10.sp) }
+
+        // Hanya munculkan tombol aksi perbaikan jika daftar order kerja tidak kosong
+        if (orders.isNotEmpty() && !orders[0].contains("Tidak ada order kerja terbuka")) {
+            Button(
+                onClick = {
+                    if (pagerState.currentPage < orders.size) {
+                        onButtonClick(pagerState.currentPage)
+                    }
+                },
+                modifier = Modifier.align(Alignment.BottomEnd).width(btnW).height(btnH),
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Box(modifier = Modifier.fillMaxSize().background(brush = Brush.horizontalGradient(colors = listOf(GlassAccentCyan, Color(0xFF0054B2))), shape = CircleShape), contentAlignment = Alignment.Center) {
+                    Text(text = buttonText, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                }
+            }
         }
     }
 }
@@ -1418,18 +1506,45 @@ fun CategorySection(
     onLapKerjaClick: () -> Unit,
     onStokPartClick: () -> Unit,
     onOrderKerjaClick: () -> Unit,
-    onNavigateToLainnya: () -> Unit
+    onNavigateToLainnya: () -> Unit,
+    onNavigateToManagementUser: () -> Unit
 ) {
-    val items = remember { listOf(
-        CategoryItem("Perawatan", R.drawable.perawatan),
-        CategoryItem("Laporan Kerja", R.drawable.laporan),
-        CategoryItem("KPI", R.drawable.kpi),
-        CategoryItem("Listrik", Icons.Default.ElectricBolt),
-        CategoryItem("Stang", R.drawable.stang),
-        CategoryItem("Order Kerja", R.drawable.wo),
-        CategoryItem("Part", R.drawable.part),
-        CategoryItem("Lainnya", Icons.Default.Apps)
-    )}
+    val role = UserSession.role
+
+    // REVISI: Mengubah list statis menjadi matriks dinamis yang menyaring tombol berdasarkan Role Karyawan
+    val items = remember(role) {
+        mutableListOf<CategoryItem>().apply {
+            // 1. Perawatan (Akses: Admin, Teknik)
+            if (role == "Admin" || role == "Teknik") {
+                add(CategoryItem("Perawatan", R.drawable.perawatan))
+            }
+            // 2. Laporan Kerja (Akses: Admin, Teknik)
+            if (role == "Admin" || role == "Teknik") {
+                add(CategoryItem("Laporan Kerja", R.drawable.laporan))
+            }
+            // 3. KPI (Akses: Semua Role)
+            add(CategoryItem("KPI", R.drawable.kpi))
+
+            // 4. Listrik (Akses: Admin, Teknik)
+            if (role == "Admin" || role == "Teknik") {
+                add(CategoryItem("Listrik", Icons.Default.ElectricBolt))
+            }
+            // 5. Stang (Akses: Admin, Teknik, Gudang)
+            if (role == "Admin" || role == "Teknik" || role == "Gudang") {
+                add(CategoryItem("Stang", R.drawable.stang))
+            }
+            // 6. Order Kerja (Akses: Admin, Teknik, Operator)
+            if (role == "Admin" || role == "Teknik" || role == "Operator") {
+                add(CategoryItem("Order Kerja", R.drawable.wo))
+            }
+            // 7. Part (Akses: Admin, Teknik, Gudang)
+            if (role == "Admin" || role == "Teknik" || role == "Gudang") {
+                add(CategoryItem("Part", R.drawable.part))
+            }
+            // 8. Lainnya / Katalog (Akses: Semua Role)
+            add(CategoryItem("Lainnya", Icons.Default.Apps))
+        }
+    }
 
     Column(modifier = Modifier.fillMaxWidth().background(Color.Transparent)
         .padding(start = 24.dp, end = 24.dp, top = 0.dp, bottom = 20.dp)
@@ -1453,8 +1568,13 @@ fun CategorySection(
                             "Order Kerja" -> onOrderKerjaClick()
                             "Part" -> onStokPartClick()
                             "Lainnya" -> onNavigateToLainnya()
+                            "User Admin" -> onNavigateToManagementUser()
                         }
                     })
+                }
+                // Jika baris terakhir memiliki jumlah kolom kurang dari 4, tambahkan Spacer penyeimbang
+                if (row.size < 4) {
+                    repeat(4 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
                 }
             }
         }
@@ -1471,13 +1591,39 @@ fun CategoryCard(item: CategoryItem, modifier: Modifier = Modifier, onClick: () 
 
 @Composable
 fun NewsSection() {
-    val newsItems = remember { listOf(NewsItem("JADWAL LIBUR LEBARAN", "Semarang, 07 Maret 2026 - PT Pabrik Besi Beton Raja Besi mengumumk...", "07 Mar 2026", R.drawable.lebaran1), NewsItem("SELAMAT MERAYAKAN HARI RA...", "Semarang, 09 Maret 2026 - PT Pabrik Besi Beton Raja Besi mengucap...", "09 Mar 2026", R.drawable.lebaran1), NewsItem("PESAN K3 UNTUK KAR...", "Saat melakukan mudik lebaran pastikan kond...", "09 Mar 2026", R.drawable.pk3), NewsItem("PASTIKAN LOKASI KERJA DALAM KON...", "Before starting the long holiday, make sure the con...", "10 Mar 2026", R.drawable.lokerja), NewsItem("TIPS MERAWAT MESIN", "Simak tips singkat dari mekanik ahli kami agar mesin tetap awet...", "10 Mar 2026", R.drawable.servis)) }
+    val newsItems = remember { listOf(
+        NewsItem("JADWAL LIBUR LEBARAN", "Semarang, 07 Maret 2026 - PT Pabrik Besi Beton Raja Besi mengumumk...", "07 Mar 2026", R.drawable.lebaran1),
+        NewsItem("SELAMAT MERAYAKAN HARI RA...", "Semarang, 09 Maret 2026 - PT Pabrik Besi Beton Raja Besi mengucap...", "09 Mar 2026", R.drawable.lebaran1),
+        NewsItem("PESAN K3 UNTUK KAR...", "Saat melakukan mudik lebaran pastikan kond...", "09 Mar 2026", R.drawable.pk3),
+        NewsItem("PASTIKAN LOKASI KERJA DALAM KON...", "Before starting the long holiday, make sure the con...", "10 Mar 2026", R.drawable.lokerja),
+        NewsItem("TIPS MERAWAT MESIN", "Simak tips singkat dari mekanik ahli kami agar mesin tetap awet...", "10 Mar 2026", R.drawable.servis)
+    )}
     val pagerState = rememberPagerState(pageCount = { newsItems.size })
     val isPreview = LocalInspectionMode.current
-    LaunchedEffect(Unit) { if (!isPreview) { while (true) { delay(4000); pagerState.animateScrollToPage((pagerState.currentPage + 1) % newsItems.size) } } }
+
+    // REVISI PENYELAMAT: Amankan looping otomatis dengan pelindung try-catch siber
+    LaunchedEffect(Unit) {
+        if (!isPreview && newsItems.isNotEmpty()) {
+            while (true) {
+                delay(4000)
+                try {
+                    val nextPage = (pagerState.currentPage + 1) % newsItems.size
+                    pagerState.animateScrollToPage(nextPage)
+                } catch (e: Exception) {
+                    // Blokir crash jika thread penataan ulang UI belum siap sempurna
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
+
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
         Text(text = "Berita", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp), color = Color.White)
-        HorizontalPager(state = pagerState, contentPadding = PaddingValues(end = 64.dp), pageSpacing = 16.dp, modifier = Modifier.fillMaxWidth()) { page -> NewsCard(newsItems[page]) }
+        HorizontalPager(state = pagerState, contentPadding = PaddingValues(end = 64.dp), pageSpacing = 16.dp, modifier = Modifier.fillMaxWidth()) { page ->
+            if (page < newsItems.size) {
+                NewsCard(newsItems[page])
+            }
+        }
     }
 }
 
@@ -1497,7 +1643,18 @@ fun CarouselBanner() {
     val actualImageCount = imageResources.size
     val pagerState = rememberPagerState(initialPage = Int.MAX_VALUE / 2, pageCount = { Int.MAX_VALUE })
     val isPreview = LocalInspectionMode.current
-    LaunchedEffect(Unit) { if (!isPreview) { while (true) { delay(3000); pagerState.animateScrollToPage(pagerState.currentPage + 1) } } }
+    LaunchedEffect(Unit) {
+        if (!isPreview) {
+            while (true) {
+                delay(3000)
+                try {
+                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
     Box(contentAlignment = Alignment.BottomCenter) {
         HorizontalPager(state = pagerState, contentPadding = PaddingValues(horizontal = 16.dp), pageSpacing = (-14).dp) { page ->
             val actualIndex = page % actualImageCount; val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction).absoluteValue

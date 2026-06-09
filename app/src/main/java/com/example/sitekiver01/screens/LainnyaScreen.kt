@@ -39,7 +39,9 @@ import com.example.sitekiver01.ui.theme.*
 @Composable
 fun LainnyaScreen(
     onBack: () -> Unit,
-    onNavigateToKatalog: () -> Unit
+    onNavigateToKatalog: () -> Unit,
+    onNavigateToUserMgmt: () -> Unit, // Satu gerbang untuk database siber teknisi detail
+    onNavigateToLemburan: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -85,12 +87,12 @@ fun LainnyaScreen(
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(bottom = 20.dp)
             ) {
+                // REVISI: Menu "USER" dihapus, tersisa 7 menu fungsional agar simetris & bersih
                 val menuItems = listOf(
                     MenuItem("Teknisi", Icons.Default.Person, SciFiCyan, "Manajemen Teknisi"),
                     MenuItem("Travo", Icons.Default.ElectricBolt, SciFiSaturday, "Monitoring Trafo"),
                     MenuItem("Lemburan", Icons.Default.AccessTime, SciFiStatusM, "Pengajuan Lembur"),
                     MenuItem("Katalog", Icons.Default.MenuBook, SciFiCyan, "Katalog Produk"),
-                    MenuItem("Menu 5", Icons.Default.Star, SciFiPurple, "Penilaian"),
                     MenuItem("Menu 6", Icons.Default.Info, SciFiCyan, "Informasi"),
                     MenuItem("Menu 7", Icons.Default.Favorite, Color(0xFFC23B22), "Favorit"),
                     MenuItem("Setting", Icons.Default.Settings, SciFiCyan, "Pengaturan")
@@ -100,10 +102,11 @@ fun LainnyaScreen(
                     NeonMenuCard(
                         menuItem = item,
                         onClick = {
-                            if (item.title == "Katalog") {
-                                onNavigateToKatalog()
-                            } else {
-                                Toast.makeText(context, "Membuka ${item.title}", Toast.LENGTH_SHORT).show()
+                            when (item.title.uppercase()) {
+                                "TEKNISI"  -> onNavigateToUserMgmt() // Tombol TEKNISI sekarang mengarah ke User Management A-Z
+                                "KATALOG"  -> onNavigateToKatalog()
+                                "LEMBURAN" -> onNavigateToLemburan()
+                                else -> Toast.makeText(context, "Membuka ${item.title}", Toast.LENGTH_SHORT).show()
                             }
                         }
                     )
@@ -203,7 +206,6 @@ private fun NeonMenuCard(
     }
 }
 
-// PENTING: Struktur Data Class diletakkan di luar agar bisa diakses oleh Komponent Grid di atas
 data class MenuItem(
     val title: String,
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
