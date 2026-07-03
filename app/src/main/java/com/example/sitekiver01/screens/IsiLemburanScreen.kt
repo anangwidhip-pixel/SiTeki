@@ -41,6 +41,11 @@ import android.util.Log
 
 // Model data internal riwayat lemburan siber
 data class LemburData(
+    /**
+     * ID unik data lembur yang berasal dari timestamp kolom A Google Sheets.
+     * Gunakan epoch milliseconds dari Apps Script, misalnya 1782966896123.
+     */
+    val timestampKey: String,
     val tanggal: String,
     val nama: String,
     val jam: Double,
@@ -70,8 +75,17 @@ fun IsiLemburanScreen(
     var isRekapVisible by remember { mutableStateOf(false) }
 
     // Bulan yang dipilih adalah bulan awal cutoff.
-    // Contoh: Juli 2026 = 22 Juli 2026 sampai 21 Agustus 2026.
-    val initialCutoffCalendar = remember { Calendar.getInstance() }
+    // Periode aktif:
+    // - Tanggal 1-21  -> mulai tanggal 22 bulan sebelumnya.
+    // - Tanggal 22-akhir bulan -> mulai tanggal 22 bulan berjalan.
+    // Contoh pada 3 Juli 2026: 22 Juni 2026 sampai 21 Juli 2026.
+    val initialCutoffCalendar = remember {
+        Calendar.getInstance().apply {
+            if (get(Calendar.DAY_OF_MONTH) < 22) {
+                add(Calendar.MONTH, -1)
+            }
+        }
+    }
     var selectedCutoffMonth by remember {
         mutableIntStateOf(initialCutoffCalendar.get(Calendar.MONTH))
     }
@@ -80,7 +94,7 @@ fun IsiLemburanScreen(
     }
     var showCutoffMonthPicker by remember { mutableStateOf(false) }
 
-    val webAppUrl = "https://script.google.com/macros/s/AKfycbzwB_hSKNsldfym-QNOBfo7QhvBzsjqyg_MkHcoRdK9BYx6UAgOFAybejeA_tAb_QLy/exec"
+    val webAppUrl = "https://script.google.com/macros/s/AKfycbzCew4zXhiyXBQKaDcWO0ZLd5mVTqH_ui2XG3b2vHPxFFjU2AuinbHOjMjkZJ3IGMjC/exec"
 
     // AMBIL DATA OTOMATIS BERDASARKAN KEY UNIT
     LaunchedEffect(Unit) {
@@ -89,11 +103,13 @@ fun IsiLemburanScreen(
             try {
                 val namaClean = UserSession.namaFull.trim()
                 val namaEncoded = URLEncoder.encode(namaClean, "UTF-8")
-                val urlAmbilData = "$webAppUrl?nama=$namaEncoded"
+                val urlAmbilData = "$webAppUrl?nama=$namaEncoded&_=${System.currentTimeMillis()}"
 
                 val url = URL(urlAmbilData)
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "GET"
+                conn.useCaches = false
+                conn.setRequestProperty("Cache-Control", "no-cache")
                 conn.connectTimeout = 15000
                 conn.readTimeout = 15000
 
@@ -105,13 +121,7 @@ fun IsiLemburanScreen(
                     for (i in 0 until jsonArray.length()) {
                         val obj = jsonArray.getJSONObject(i)
                         tempList.add(
-                            LemburData(
-                                tanggal = obj.optString("tanggal", ""),
-                                nama = obj.optString("nama", ""),
-                                jam = obj.optDouble("jam", 0.0),
-                                jenis = obj.optString("jenis", ""),
-                                upah = obj.optDouble("upah", 0.0)
-                            )
+                            parseLemburJsonObject(obj)
                         )
                     }
                     listLemburRaw = tempList
@@ -212,11 +222,13 @@ fun IsiLemburanScreen(
                 try {
                     val namaClean = UserSession.namaFull.trim()
                     val namaEncoded = URLEncoder.encode(namaClean, "UTF-8")
-                    val urlAmbilData = "$webAppUrl?nama=$namaEncoded"
+                    val urlAmbilData = "$webAppUrl?nama=$namaEncoded&_=${System.currentTimeMillis()}"
 
                     val url = URL(urlAmbilData)
                     val conn = url.openConnection() as HttpURLConnection
                     conn.requestMethod = "GET"
+                    conn.useCaches = false
+                    conn.setRequestProperty("Cache-Control", "no-cache")
                     conn.connectTimeout = 15000
                     conn.readTimeout = 15000
 
@@ -228,13 +240,7 @@ fun IsiLemburanScreen(
                         for (i in 0 until jsonArray.length()) {
                             val obj = jsonArray.getJSONObject(i)
                             tempList.add(
-                                LemburData(
-                                    tanggal = obj.optString("tanggal", ""),
-                                    nama = obj.optString("nama", ""),
-                                    jam = obj.optDouble("jam", 0.0),
-                                    jenis = obj.optString("jenis", ""),
-                                    upah = obj.optDouble("upah", 0.0)
-                                )
+                                parseLemburJsonObject(obj)
                             )
                         }
                         listLemburRaw = tempList
@@ -421,163 +427,191 @@ fun IsiLemburanScreen(
                                     textAlign = TextAlign.Center
                                 )
                             } else {
-                                filteredLembur.forEach { item ->
-                                    // State untuk dialog
-                                    var showDeleteDialog by remember { mutableStateOf(false) }
-                                    var showEditDialog by remember { mutableStateOf(false) }
-                                    var isDeleting by remember { mutableStateOf(false) }
-                                    var isEditing by remember { mutableStateOf(false) }
-
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(8.dp))
-                                            .border(1.dp, GlassBorder, RoundedCornerShape(8.dp))
-                                            .padding(8.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                filteredLembur.forEachIndexed { index, item ->
+                                    // Timestamp dipakai sebagai key agar state dialog tidak berpindah
+                                    // ke item lain ketika daftar diperbarui atau diurutkan ulang.
+                                    key(
+                                        item.timestampKey.ifBlank {
+                                            "${item.tanggal}|${item.nama}|${item.jam}|${item.upah}|$index"
+                                        }
                                     ) {
-                                        // Informasi lemburan
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(item.tanggal, fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Medium)
-                                            Text("${item.jam} Jam - ${item.jenis}", fontSize = 10.sp, color = GlassTextMuted)
-                                        }
+                                        // State untuk dialog
+                                        var showDeleteDialog by remember { mutableStateOf(false) }
+                                        var showEditDialog by remember { mutableStateOf(false) }
+                                        var isDeleting by remember { mutableStateOf(false) }
+                                        var isEditing by remember { mutableStateOf(false) }
 
-                                        // Upah
-                                        Text(
-                                            text = "Rp ${String.format("%,d", item.upah.toLong())}",
-                                            fontSize = 12.sp,
-                                            color = GlassAccentCyan,
-                                            fontWeight = FontWeight.Bold,
-                                            fontFamily = OrbitronFontFamily
-                                        )
-
-                                        Spacer(Modifier.width(4.dp))
-
-                                        // Tombol Edit
-                                        IconButton(
-                                            onClick = { showEditDialog = true },
-                                            modifier = Modifier.size(28.dp)
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(Color.White.copy(alpha = 0.02f), RoundedCornerShape(8.dp))
+                                                .border(1.dp, GlassBorder, RoundedCornerShape(8.dp))
+                                                .padding(8.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Icon(
-                                                Icons.Default.Edit,
-                                                contentDescription = "Edit",
-                                                tint = Color(0xFF4CAF50),
-                                                modifier = Modifier.size(18.dp)
+                                            // Informasi lemburan
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(item.tanggal, fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Medium)
+                                                Text("${item.jam} Jam - ${item.jenis}", fontSize = 10.sp, color = GlassTextMuted)
+                                            }
+
+                                            // Upah
+                                            Text(
+                                                text = "Rp ${String.format("%,d", item.upah.toLong())}",
+                                                fontSize = 12.sp,
+                                                color = GlassAccentCyan,
+                                                fontWeight = FontWeight.Bold,
+                                                fontFamily = OrbitronFontFamily
                                             )
-                                        }
 
-                                        // Tombol Hapus
-                                        IconButton(
-                                            onClick = { showDeleteDialog = true },
-                                            modifier = Modifier.size(28.dp)
-                                        ) {
-                                            if (isDeleting) {
-                                                CircularProgressIndicator(color = Color(0xFFC23B22), modifier = Modifier.size(14.dp))
-                                            } else {
+                                            Spacer(Modifier.width(4.dp))
+
+                                            // Tombol Edit
+                                            IconButton(
+                                                onClick = { showEditDialog = true },
+                                                modifier = Modifier.size(28.dp)
+                                            ) {
                                                 Icon(
-                                                    Icons.Default.Delete,
-                                                    contentDescription = "Hapus",
-                                                    tint = Color(0xFFC23B22),
+                                                    Icons.Default.Edit,
+                                                    contentDescription = "Edit",
+                                                    tint = Color(0xFF4CAF50),
                                                     modifier = Modifier.size(18.dp)
                                                 )
                                             }
-                                        }
-                                    }
 
-                                    // Dialog Konfirmasi Hapus
-                                    if (showDeleteDialog) {
-                                        AlertDialog(
-                                            onDismissRequest = { showDeleteDialog = false },
-                                            containerColor = Color(0xFF1A1A2E),
-                                            title = {
-                                                Text(
-                                                    "HAPUS DATA LEMBURAN",
-                                                    fontFamily = OrbitronFontFamily,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 16.sp,
-                                                    color = Color.White
-                                                )
-                                            },
-                                            text = {
-                                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                                    Text("Anda yakin ingin menghapus data berikut?", color = Color.White)
-                                                    Spacer(Modifier.height(8.dp))
-                                                    Text("Tanggal: ${item.tanggal}", color = Color.White, fontWeight = FontWeight.Bold)
-                                                    Text("Jam: ${item.jam} Jam", color = Color.White)
-                                                    Text("Jenis: ${item.jenis}", color = Color.White)
-                                                    Text("Upah: Rp ${String.format("%,d", item.upah.toLong())}", color = GlassAccentCyan)
-                                                }
-                                            },
-                                            confirmButton = {
-                                                Button(
-                                                    onClick = {
-                                                        isDeleting = true
-                                                        scope.launch {
-                                                            // Kirim dengan format yang sudah pasti benar
-                                                            val (isSuccess, pesan) = hapusLemburan(
-                                                                webAppUrl = webAppUrl,
-                                                                tanggal = item.tanggal, // Dari LemburData
-                                                                nama = UserSession.namaFull // Dari session
-                                                            )
-                                                            isDeleting = false
-                                                            showDeleteDialog = false
-
-                                                            if (isSuccess) {
-                                                                Toast.makeText(context, "Data berhasil dihapus!", Toast.LENGTH_SHORT).show()
-                                                                refreshData()
-                                                            } else {
-                                                                Toast.makeText(context, "Gagal hapus: $pesan", Toast.LENGTH_LONG).show()
-                                                            }
-                                                        }
-                                                    },
-                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC23B22))
-                                                ) {
-                                                    if (isDeleting) {
-                                                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp))
-                                                    } else {
-                                                        Text("HAPUS", color = Color.White, fontWeight = FontWeight.Bold)
-                                                    }
-                                                }
-                                            },
-                                            dismissButton = {
-                                                OutlinedButton(onClick = { showDeleteDialog = false }) {
-                                                    Text("BATAL", color = GlassAccentCyan)
+                                            // Tombol Hapus
+                                            IconButton(
+                                                onClick = { showDeleteDialog = true },
+                                                modifier = Modifier.size(28.dp)
+                                            ) {
+                                                if (isDeleting) {
+                                                    CircularProgressIndicator(color = Color(0xFFC23B22), modifier = Modifier.size(14.dp))
+                                                } else {
+                                                    Icon(
+                                                        Icons.Default.Delete,
+                                                        contentDescription = "Hapus",
+                                                        tint = Color(0xFFC23B22),
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
                                                 }
                                             }
-                                        )
-                                    }
+                                        }
 
-                                    // Dialog Edit
-                                    if (showEditDialog) {
-                                        EditLemburDialog(
-                                            itemToEdit = item,
-                                            onDismiss = { showEditDialog = false },
-                                            onSave = { tanggalBaru, jamBaru, isHariBesarBaru ->
-                                                isEditing = true
-                                                scope.launch {
-                                                    val (isSuccess, pesan) = updateLemburan(
-                                                        webAppUrl = webAppUrl,
-                                                        tanggalLama = item.tanggal,
-                                                        tanggalBaru = tanggalBaru,
-                                                        nama = UserSession.namaFull,
-                                                        role = UserSession.role,
-                                                        jam = jamBaru,
-                                                        isHariBesar = isHariBesarBaru
+                                        // Dialog Konfirmasi Hapus
+                                        if (showDeleteDialog) {
+                                            AlertDialog(
+                                                onDismissRequest = { showDeleteDialog = false },
+                                                containerColor = Color(0xFF1A1A2E),
+                                                title = {
+                                                    Text(
+                                                        "HAPUS DATA LEMBURAN",
+                                                        fontFamily = OrbitronFontFamily,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 16.sp,
+                                                        color = Color.White
                                                     )
-                                                    isEditing = false
-                                                    showEditDialog = false
+                                                },
+                                                text = {
+                                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                        Text("Anda yakin ingin menghapus data berikut?", color = Color.White)
+                                                        Spacer(Modifier.height(8.dp))
+                                                        Text("Tanggal: ${item.tanggal}", color = Color.White, fontWeight = FontWeight.Bold)
+                                                        Text("Jam: ${item.jam} Jam", color = Color.White)
+                                                        Text("Jenis: ${item.jenis}", color = Color.White)
+                                                        Text("Upah: Rp ${String.format("%,d", item.upah.toLong())}", color = GlassAccentCyan)
+                                                    }
+                                                },
+                                                confirmButton = {
+                                                    Button(
+                                                        onClick = {
+                                                            isDeleting = true
+                                                            scope.launch {
+                                                                if (item.timestampKey.isBlank()) {
+                                                                    isDeleting = false
+                                                                    showDeleteDialog = false
+                                                                    Toast.makeText(
+                                                                        context,
+                                                                        "ID timestamp belum tersedia. Update dan deploy Apps Script terlebih dahulu.",
+                                                                        Toast.LENGTH_LONG
+                                                                    ).show()
+                                                                    return@launch
+                                                                }
 
-                                                    if (isSuccess) {
-                                                        Toast.makeText(context, "Data berhasil diupdate!", Toast.LENGTH_SHORT).show()
-                                                        refreshData()
-                                                    } else {
-                                                        Toast.makeText(context, "Gagal update: $pesan", Toast.LENGTH_LONG).show()
+                                                                val (isSuccess, pesan) = hapusLemburan(
+                                                                    webAppUrl = webAppUrl,
+                                                                    timestampKey = item.timestampKey
+                                                                )
+                                                                isDeleting = false
+                                                                showDeleteDialog = false
+
+                                                                if (isSuccess) {
+                                                                    Toast.makeText(context, "Data berhasil dihapus!", Toast.LENGTH_SHORT).show()
+                                                                    refreshData()
+                                                                } else {
+                                                                    Toast.makeText(context, "Gagal hapus: $pesan", Toast.LENGTH_LONG).show()
+                                                                }
+                                                            }
+                                                        },
+                                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC23B22))
+                                                    ) {
+                                                        if (isDeleting) {
+                                                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp))
+                                                        } else {
+                                                            Text("HAPUS", color = Color.White, fontWeight = FontWeight.Bold)
+                                                        }
+                                                    }
+                                                },
+                                                dismissButton = {
+                                                    OutlinedButton(onClick = { showDeleteDialog = false }) {
+                                                        Text("BATAL", color = GlassAccentCyan)
                                                     }
                                                 }
-                                            },
-                                            isSaving = isEditing
-                                        )
+                                            )
+                                        }
+
+                                        // Dialog Edit
+                                        if (showEditDialog) {
+                                            EditLemburDialog(
+                                                itemToEdit = item,
+                                                onDismiss = { showEditDialog = false },
+                                                onSave = { tanggalBaru, jamBaru, isHariBesarBaru ->
+                                                    isEditing = true
+                                                    scope.launch {
+                                                        if (item.timestampKey.isBlank()) {
+                                                            isEditing = false
+                                                            showEditDialog = false
+                                                            Toast.makeText(
+                                                                context,
+                                                                "ID timestamp belum tersedia. Update dan deploy Apps Script terlebih dahulu.",
+                                                                Toast.LENGTH_LONG
+                                                            ).show()
+                                                            return@launch
+                                                        }
+
+                                                        val (isSuccess, pesan) = updateLemburan(
+                                                            webAppUrl = webAppUrl,
+                                                            timestampKey = item.timestampKey,
+                                                            tanggalBaru = tanggalBaru,
+                                                            nama = UserSession.namaFull,
+                                                            role = UserSession.role,
+                                                            jam = jamBaru,
+                                                            isHariBesar = isHariBesarBaru
+                                                        )
+                                                        isEditing = false
+                                                        showEditDialog = false
+
+                                                        if (isSuccess) {
+                                                            Toast.makeText(context, "Data berhasil diupdate!", Toast.LENGTH_SHORT).show()
+                                                            refreshData()
+                                                        } else {
+                                                            Toast.makeText(context, "Gagal update: $pesan", Toast.LENGTH_LONG).show()
+                                                        }
+                                                    }
+                                                },
+                                                isSaving = isEditing
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -708,7 +742,7 @@ fun IsiLemburanScreen(
                                             tanggal = ""
                                             jam = ""
                                             isHariBesar = false
-                                            onBack()
+                                            // Tetap di halaman IsiLemburanScreen setelah data tersimpan
                                         } else {
                                             // Tampilkan pesan error spesifik dari server
                                             Toast.makeText(context, pesan, Toast.LENGTH_LONG).show()
@@ -1073,7 +1107,27 @@ fun EditLemburDialog(
 // =================================================================
 // PARSER TANGGAL DATA LEMBUR
 // =================================================================
-private fun parseLemburDate(rawDate: String): Date? {
+ /**
+ * Membaca data JSON dari Apps Script.
+ * timestampKey wajib berasal dari properti timestampKey pada respons doGet().
+ */
+private fun parseLemburJsonObject(obj: JSONObject): LemburData {
+    val timestampKey = when (val rawKey = obj.opt("timestampKey")) {
+        null, JSONObject.NULL -> ""
+        else -> rawKey.toString().trim()
+    }
+
+    return LemburData(
+        timestampKey = timestampKey,
+        tanggal = obj.optString("tanggal", "").trim(),
+        nama = obj.optString("nama", "").trim(),
+        jam = obj.optDouble("jam", 0.0),
+        jenis = obj.optString("jenis", "").trim(),
+        upah = obj.optDouble("upah", 0.0)
+    )
+}
+
+fun parseLemburDate(rawDate: String): Date? {
     val value = rawDate.trim()
     if (value.isEmpty()) return null
 
@@ -1150,52 +1204,62 @@ suspend fun kirimLemburan(
     }
 }
 
-// FUNGSI MENGHAPUS DATA LEMBURAN
+// FUNGSI MENGHAPUS DATA LEMBURAN BERDASARKAN TIMESTAMP UNIK
 suspend fun hapusLemburan(
     webAppUrl: String,
-    tanggal: String,
-    nama: String
+    timestampKey: String
 ): Pair<Boolean, String> {
     return withContext(Dispatchers.IO) {
+        if (timestampKey.isBlank()) {
+            return@withContext Pair(false, "Error: Timestamp kosong")
+        }
+
+        var conn: HttpURLConnection? = null
+
         try {
             val url = URL(webAppUrl)
-            val conn = url.openConnection() as HttpURLConnection
+            conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.doOutput = true
-            conn.setRequestProperty("Content-Type", "application/json")
-            conn.connectTimeout = 30000 // Tambah timeout jadi 30 detik
+            conn.connectTimeout = 30000
             conn.readTimeout = 30000
+            conn.setRequestProperty(
+                "Content-Type",
+                "application/json; charset=UTF-8"
+            )
 
             val json = JSONObject().apply {
                 put("action", "delete")
-                put("tanggal", tanggal)
-                put("nama", nama)
+                put("timestampKey", timestampKey)
             }
 
-            Log.d("HapusLemburan", "Mengirim request: " + json.toString())
+            Log.d("HapusLemburan", "Mengirim request: $json")
 
-            conn.outputStream.use { it.write(json.toString().toByteArray()) }
+            conn.outputStream.use { output ->
+                output.write(json.toString().toByteArray(Charsets.UTF_8))
+            }
 
-            // BACA RESPONS SERVER
             val responseCode = conn.responseCode
-            Log.d("HapusLemburan", "Response Code: $responseCode")
-
-            val response = if (responseCode == HttpURLConnection.HTTP_OK) {
+            val response = if (responseCode in 200..299) {
                 conn.inputStream.bufferedReader().use { it.readText() }
             } else {
-                conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "Unknown Error"
+                conn.errorStream?.bufferedReader()?.use { it.readText() }
+                    ?: "HTTP $responseCode"
             }
 
+            Log.d("HapusLemburan", "Response Code: $responseCode")
             Log.d("HapusLemburan", "Response: $response")
 
-            if (response.contains("Success")) {
-                Pair(true, "Success")
+            if (response.contains("Success", ignoreCase = true)) {
+                Pair(true, response)
             } else {
                 Pair(false, response)
             }
         } catch (e: Exception) {
             Log.e("HapusLemburan", "Error: ${e.message}", e)
-            Pair(false, "Error: ${e.message}")
+            Pair(false, "Error: ${e.message ?: "Koneksi gagal"}")
+        } finally {
+            conn?.disconnect()
         }
     }
 }
@@ -1203,7 +1267,7 @@ suspend fun hapusLemburan(
 // FUNGSI UPDATE DATA LEMBURAN
 suspend fun updateLemburan(
     webAppUrl: String,
-    tanggalLama: String,
+    timestampKey: String,
     tanggalBaru: String,
     nama: String,
     role: String,
@@ -1218,9 +1282,13 @@ suspend fun updateLemburan(
             conn.doOutput = true
             conn.setRequestProperty("Content-Type", "application/json")
 
+            if (timestampKey.isBlank()) {
+                return@withContext Pair(false, "Error: Timestamp kosong")
+            }
+
             val json = JSONObject().apply {
                 put("action", "update")
-                put("tanggalLama", tanggalLama)
+                put("timestampKey", timestampKey)
                 put("tanggalBaru", tanggalBaru)
                 put("nama", nama)
                 put("role", role)
