@@ -134,12 +134,6 @@ fun AppNavigation() {
     val navController = androidx.navigation.compose.rememberNavController()
     // REVISI: Mengubah default screen awal menuju Screen.Login demi keamanan otentikasi
     var showSplash by remember { mutableStateOf(true) }
-    if (showSplash) {
-        SplashScreen(onTimeout = { showSplash = false })
-    } else {
-        // Tampilkan LoginScreen setelah Splash selesai
-        LoginScreen(onLoginSuccess = { /* Navigasi ke Dashboard */ })
-    }
     var currentScreen by remember { mutableStateOf(Screen.Login) }
     var webUrl by remember { mutableStateOf("") }
     var webTitle by remember { mutableStateOf("") }
@@ -339,12 +333,25 @@ fun AppNavigation() {
     val showBottomBar =
         currentScreen in listOf(Screen.Dashboard, Screen.QRScanner) && UserSession.isLoggedIn
 
-    Crossfade(targetState = if (showSplash) Screen.Splash else currentScreen) { targetScreen ->
+    Crossfade(
+        targetState = if (showSplash) Screen.Splash else currentScreen,
+        label = "mainScreenTransition"
+    ) { targetScreen ->
+
         if (targetScreen == Screen.Splash) {
-            SplashScreen(onTimeout = { showSplash = false })
+            SplashScreen(
+                onTimeout = {
+                    showSplash = false
+                }
+            )
         } else {
-            Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(GlassBase)
+            ) {
                 SciFiBackground()
+
                 Scaffold(
                     containerColor = Color.Transparent,
                     bottomBar = {
@@ -353,12 +360,14 @@ fun AppNavigation() {
                                 selectedIndex = selectedIndex,
                                 onItemSelected = { index ->
                                     selectedIndex = index
+
                                     when (index) {
                                         0 -> currentScreen = Screen.Dashboard
                                         1 -> showPerawatanPopup = true
                                         2 -> currentScreen = Screen.QRScanner
                                         3 -> currentScreen = Screen.LapKerja
-                                        4 -> { /* Akun */
+                                        4 -> {
+                                            // Halaman akun
                                         }
                                     }
                                 }
@@ -366,12 +375,19 @@ fun AppNavigation() {
                         }
                     }
                 ) { innerPadding ->
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        val modifierWithPadding =
-                            Modifier.padding(bottom = if (showBottomBar) innerPadding.calculateBottomPadding() else 0.dp)
 
-                        when (currentScreen) {
-                            // REVISI: Menambahkan gerbang masuk otentikasi login
+                    Box(modifier = Modifier.fillMaxSize()) {
+
+                        val modifierWithPadding = Modifier.padding(
+                            bottom = if (showBottomBar) {
+                                innerPadding.calculateBottomPadding()
+                            } else {
+                                0.dp
+                            }
+                        )
+
+                        // Gunakan targetScreen, bukan currentScreen
+                        when (targetScreen) {
                             Screen.Login -> {
                                 LoginScreen(
                                     onLoginSuccess = {
@@ -384,12 +400,27 @@ fun AppNavigation() {
                             Screen.Dashboard -> {
                                 DashboardScreen(
                                     modifier = modifierWithPadding,
-                                    onNavigateToPerawatan = { showPerawatanPopup = true },
-                                    onNavigateToStang = { currentScreen = Screen.Stang },
-                                    onNavigateToKPI = { currentScreen = Screen.KPI },
-                                    onNavigateToListrik = { currentScreen = Screen.Listrik },
+
+                                    // Callback Anda tetap seperti semula
+                                    onNavigateToPerawatan = {
+                                        showPerawatanPopup = true
+                                    },
+
+                                    onNavigateToStang = {
+                                        currentScreen = Screen.Stang
+                                    },
+
+                                    onNavigateToKPI = {
+                                        currentScreen = Screen.KPI
+                                    },
+
+                                    onNavigateToListrik = {
+                                        currentScreen = Screen.Listrik
+                                    },
+
                                     onNavigateToLapKerja = {
-                                        currentScreen = Screen.LapKerja; selectedIndex = 3
+                                        currentScreen = Screen.LapKerja
+                                        selectedIndex = 3
                                     },
                                     onOrderKerjaClick = { order ->
                                         currentOrderDetail = order

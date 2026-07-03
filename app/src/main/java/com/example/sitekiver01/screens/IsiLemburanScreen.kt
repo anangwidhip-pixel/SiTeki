@@ -34,6 +34,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.text.DateFormatSymbols
 import java.text.SimpleDateFormat
 import java.util.*
 import android.util.Log
@@ -67,6 +68,17 @@ fun IsiLemburanScreen(
     var listLemburRaw by remember { mutableStateOf<List<LemburData>>(emptyList()) }
     var isLoadingRekap by remember { mutableStateOf(false) }
     var isRekapVisible by remember { mutableStateOf(false) }
+
+    // Bulan yang dipilih adalah bulan awal cutoff.
+    // Contoh: Juli 2026 = 22 Juli 2026 sampai 21 Agustus 2026.
+    val initialCutoffCalendar = remember { Calendar.getInstance() }
+    var selectedCutoffMonth by remember {
+        mutableIntStateOf(initialCutoffCalendar.get(Calendar.MONTH))
+    }
+    var selectedCutoffYear by remember {
+        mutableIntStateOf(initialCutoffCalendar.get(Calendar.YEAR))
+    }
+    var showCutoffMonthPicker by remember { mutableStateOf(false) }
 
     val webAppUrl = "https://script.google.com/macros/s/AKfycbzwB_hSKNsldfym-QNOBfo7QhvBzsjqyg_MkHcoRdK9BYx6UAgOFAybejeA_tAb_QLy/exec"
 
@@ -112,52 +124,75 @@ fun IsiLemburanScreen(
         }
     }
 
-    // LOGIKA FILTER AMAN DI SISI KOTLIN (22 BULAN LALU s/d 21 BULAN SEKARANG)
-    val rekapData = remember(listLemburRaw, isRekapVisible) {
-        val calendar = Calendar.getInstance()
-        val sdfApp = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-        val currentMonthStr = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(calendar.time)
+    // FILTER BERDASARKAN BULAN CUTOFF YANG DIPILIH:
+    // tanggal 22 bulan terpilih sampai tanggal 21 bulan berikutnya.
+    val rekapData = remember(
+        listLemburRaw,
+        selectedCutoffMonth,
+        selectedCutoffYear
+    ) {
+        val localeIndonesia = Locale("id", "ID")
+        val dateFormatter = SimpleDateFormat("dd MMMM yyyy", localeIndonesia)
 
-        calendar.set(Calendar.DAY_OF_MONTH, 21)
-        calendar.set(Calendar.HOUR_OF_DAY, 23)
-        calendar.set(Calendar.MINUTE, 59)
-        val tglAkhir = calendar.time
-        val tglAkhirStr = sdfApp.format(tglAkhir)
-
-        calendar.add(Calendar.MONTH, -1)
-        calendar.set(Calendar.DAY_OF_MONTH, 22)
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        val tglAwal = calendar.time
-        val tglAwalStr = sdfApp.format(tglAwal)
-
-        val filtered = listLemburRaw.filter { item ->
-            try {
-                val tanggalNormal = item.tanggal.replace("-", "/")
-                val itemDate = try {
-                    SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(tanggalNormal)
-                } catch (e: Exception) {
-                    SimpleDateFormat("d/M/yyyy", Locale.getDefault()).parse(tanggalNormal)
-                }
-
-                val namaSheetLower = item.nama.trim().lowercase()
-                val namaLoginLower = UserSession.namaFull.trim().lowercase()
-                val matchesUser = namaSheetLower.contains(namaLoginLower) || namaLoginLower.contains(namaSheetLower)
-
-                val inRange = itemDate != null && !itemDate.before(tglAwal) && !itemDate.after(tglAkhir)
-                matchesUser && inRange
-            } catch (e: Exception) {
-                false
-            }
+        val startCalendar = Calendar.getInstance().apply {
+            clear()
+            set(selectedCutoffYear, selectedCutoffMonth, 22, 0, 0, 0)
+            set(Calendar.MILLISECOND, 0)
         }
 
+        val endCalendar = (startCalendar.clone() as Calendar).apply {
+            add(Calendar.MONTH, 1)
+            set(Calendar.DAY_OF_MONTH, 21)
+            set(Calendar.HOUR_OF_DAY, 23)
+            set(Calendar.MINUTE, 59)
+            set(Calendar.SECOND, 59)
+            set(Calendar.MILLISECOND, 999)
+        }
+
+        val tanggalAwal = startCalendar.time
+        val tanggalAkhir = endCalendar.time
+
+        val filtered = listLemburRaw
+            .filter { item ->
+                val itemDate = parseLemburDate(item.tanggal)
+                val namaSheetLower = item.nama.trim().lowercase(localeIndonesia)
+                val namaLoginLower = UserSession.namaFull.trim().lowercase(localeIndonesia)
+
+                val matchesUser =
+                    namaSheetLower.contains(namaLoginLower) ||
+                            namaLoginLower.contains(namaSheetLower)
+
+                val inRange = itemDate != null &&
+                        !itemDate.before(tanggalAwal) &&
+                        !itemDate.after(tanggalAkhir)
+
+                matchesUser && inRange
+            }
+            .sortedByDescending { parseLemburDate(it.tanggal)?.time ?: 0L }
+
         val totalUpah = filtered.sumOf { item -> item.upah }
-        Triple(filtered, totalUpah, "$tglAwalStr - $tglAkhirStr")
+        val labelPeriode =
+            "${dateFormatter.format(tanggalAwal)} - ${dateFormatter.format(tanggalAkhir)}"
+
+        Triple(filtered, totalUpah, labelPeriode)
     }
 
     val filteredLembur = rekapData.first
     val totalUpahLembur = rekapData.second
     val labelPeriodeCutoff = rekapData.third
+
+    val selectedCutoffMonthLabel = remember(
+        selectedCutoffMonth,
+        selectedCutoffYear
+    ) {
+        val calendar = Calendar.getInstance().apply {
+            clear()
+            set(selectedCutoffYear, selectedCutoffMonth, 1)
+        }
+        SimpleDateFormat("MMMM yyyy", Locale("id", "ID"))
+            .format(calendar.time)
+            .replaceFirstChar { it.uppercase() }
+    }
 
     // DatePicker Logic
     val calendarPicker = Calendar.getInstance()
@@ -317,6 +352,47 @@ fun IsiLemburanScreen(
                                 ) {
                                     Text(if (isLoadingRekap) "LOADING" else "AKTIF", fontSize = 9.sp, color = GlassAccentCyan, fontWeight = FontWeight.Bold)
                                 }
+                            }
+                        }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = "CARI BULAN CUTOFF",
+                                fontSize = 10.sp,
+                                color = GlassTextMuted,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = OrbitronFontFamily
+                            )
+
+                            OutlinedButton(
+                                onClick = { showCutoffMonthPicker = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, GlassAccentCyan.copy(alpha = 0.55f)),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = GlassAccentCyan.copy(alpha = 0.06f),
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DateRange,
+                                    contentDescription = null,
+                                    tint = GlassAccentCyan,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = selectedCutoffMonthLabel,
+                                    modifier = Modifier.weight(1f),
+                                    textAlign = TextAlign.Start,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "Cari bulan",
+                                    tint = GlassAccentCyan,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
                         }
 
@@ -675,6 +751,165 @@ fun IsiLemburanScreen(
             Spacer(modifier = Modifier.height(20.dp))
         }
     }
+
+    if (showCutoffMonthPicker) {
+        CutoffMonthPickerDialog(
+            selectedMonth = selectedCutoffMonth,
+            selectedYear = selectedCutoffYear,
+            onDismiss = { showCutoffMonthPicker = false },
+            onMonthSelected = { month, year ->
+                selectedCutoffMonth = month
+                selectedCutoffYear = year
+                showCutoffMonthPicker = false
+            }
+        )
+    }
+}
+
+// =================================================================
+// DIALOG PILIH BULAN CUTOFF
+// =================================================================
+@Composable
+private fun CutoffMonthPickerDialog(
+    selectedMonth: Int,
+    selectedYear: Int,
+    onDismiss: () -> Unit,
+    onMonthSelected: (month: Int, year: Int) -> Unit
+) {
+    val localeIndonesia = remember { Locale("id", "ID") }
+    val monthNames = remember {
+        DateFormatSymbols(localeIndonesia).months.take(12)
+    }
+
+    var temporaryMonth by remember(selectedMonth) {
+        mutableIntStateOf(selectedMonth)
+    }
+    var temporaryYear by remember(selectedYear) {
+        mutableIntStateOf(selectedYear)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1A1A2E),
+        title = {
+            Text(
+                text = "PILIH BULAN CUTOFF",
+                color = Color.White,
+                fontFamily = OrbitronFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { temporaryYear-- }) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowLeft,
+                            contentDescription = "Tahun sebelumnya",
+                            tint = GlassAccentCyan
+                        )
+                    }
+
+                    Text(
+                        text = temporaryYear.toString(),
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = OrbitronFontFamily
+                    )
+
+                    IconButton(onClick = { temporaryYear++ }) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowRight,
+                            contentDescription = "Tahun berikutnya",
+                            tint = GlassAccentCyan
+                        )
+                    }
+                }
+
+                monthNames.chunked(3).forEachIndexed { rowIndex, monthsInRow ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        monthsInRow.forEachIndexed { columnIndex, monthName ->
+                            val monthIndex = rowIndex * 3 + columnIndex
+                            val isSelected = monthIndex == temporaryMonth
+
+                            OutlinedButton(
+                                onClick = { temporaryMonth = monthIndex },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isSelected) GlassAccentCyan else GlassBorder
+                                ),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = if (isSelected) {
+                                        GlassAccentCyan
+                                    } else {
+                                        Color.Transparent
+                                    },
+                                    contentColor = if (isSelected) Color.Black else Color.White
+                                )
+                            ) {
+                                Text(
+                                    text = monthName.take(3).uppercase(localeIndonesia),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+
+                val previewStart = Calendar.getInstance().apply {
+                    clear()
+                    set(temporaryYear, temporaryMonth, 22)
+                }
+                val previewEnd = (previewStart.clone() as Calendar).apply {
+                    add(Calendar.MONTH, 1)
+                    set(Calendar.DAY_OF_MONTH, 21)
+                }
+                val previewFormatter = SimpleDateFormat("dd MMM yyyy", localeIndonesia)
+
+                Text(
+                    text = "Periode: ${previewFormatter.format(previewStart.time)} - " +
+                            previewFormatter.format(previewEnd.time),
+                    color = GlassTextMuted,
+                    fontSize = 11.sp,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onMonthSelected(temporaryMonth, temporaryYear)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = GlassAccentCyan)
+            ) {
+                Text(
+                    text = "TERAPKAN",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) {
+                Text("BATAL", color = GlassAccentCyan)
+            }
+        }
+    )
 }
 
 // =================================================================
@@ -833,6 +1068,38 @@ fun EditLemburDialog(
             }
         }
     )
+}
+
+// =================================================================
+// PARSER TANGGAL DATA LEMBUR
+// =================================================================
+private fun parseLemburDate(rawDate: String): Date? {
+    val value = rawDate.trim()
+    if (value.isEmpty()) return null
+
+    val formats = listOf(
+        "dd/MM/yyyy",
+        "d/M/yyyy",
+        "yyyy-MM-dd",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "EEE MMM dd HH:mm:ss zzz yyyy"
+    )
+
+    for (pattern in formats) {
+        try {
+            return SimpleDateFormat(pattern, Locale.US).apply {
+                isLenient = false
+                if (pattern.contains("'Z'")) {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }
+            }.parse(value)
+        } catch (_: Exception) {
+            // Coba format berikutnya.
+        }
+    }
+
+    return null
 }
 
 // =================================================================
