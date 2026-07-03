@@ -25,6 +25,10 @@ enum class Screen {
     OrderPart,
     DaftarOrder,
     IsiPerawatan,
+    TravoMenu,
+    TravoInspeksi,
+
+    TravoData,
 
     // Order Kerja System & Logistik Terminal PT. RAJA BESI
     DetailOrder,
@@ -33,6 +37,9 @@ enum class Screen {
     OrderKerjaList,
     RekapAdmin,
     Lainnya,
-    Stang
+    Stang,
+    Splash
+
 
 }
+val Splash = "splash"

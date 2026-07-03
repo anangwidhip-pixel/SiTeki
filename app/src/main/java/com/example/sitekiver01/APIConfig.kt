@@ -1,0 +1,31 @@
+package com.example.sitekiver01
+
+object APIConfig {
+    private const val BASE_URL = "https://script.google.com/macros/s/"
+
+    const val LOGIN_URL = "${BASE_URL}AKfycbzzdAkBlB9PVR3aAtPmkuZ5OCO9Cz31S-zlGiQfPcPsUkhTfjsHQt6gasEO4qNvSFU/exec"
+    const val DOWNTIME_URL = "${BASE_URL}AKfycbwXEeFSt5dCP-gPUtSbLX1WCfvPfSe7wJGnMs4vwEt1djVQNVjXxUdv8_ly9uFvM4o/exec"
+    const val ORDER_URL = "${BASE_URL}AKfycbxJOKT1yM71bQr1PbJSJ7X6q-RdJ1nmUpjvutRzkBvIYuPbZM2cGh3NuQ0X62GCJkVd/exec"
+    const val ORDER_PART_URL = "${BASE_URL}AKfycbwHVQ2pB4rKZXuZTLcffgIAHiRgo4lP_wPCieNNOd2XFdOxhHehcoo5DgxSBd2wUl8/exec"
+    const val LAPORAN_URL = "${BASE_URL}AKfycbwYHHf8ONKbs9m5CppnzUuo067CBvrqRRfLYzl5ABwOH81sVWnFD8AyPx6F6Vf3uC4/exec"
+    const val MIGRASI_URL = "${BASE_URL}AKfycbyLAKLUbUpzWwuR3KSet3pPyEQhV9d1pWubackduAToyYPeZpQm96AFJM7gPHaL5mTyeum/exec"
+    const val MIGRASI_PART_URL = "${BASE_URL}AKfycbyLAKLUbUpzWwuR3KSet3pPyEQhV9d1pWuqduAToyYPeZpQm96AFJM7gPHaL5mTyeum/exec"
+    const val STOK_PART_URL = "${BASE_URL}AKfycbxHnZzPQ3jCrMU3tvRGTiQnBIZe7pETN7iWr8e4amU4cdgi22TVzEFjB84ZXUohBDvD/exec"
+    const val USER_MANAGEMENT_URL = "${BASE_URL}AKfycbx1UG3Pkc9YEbZZc9bKyP_Gg6Z9VaHfGl7OdvLt1ZFJRWIDlBNrqG7NJkgSlWSbZhQ/exec"
+    const val BUAT_ORDER_URL = "${BASE_URL}AKfycbzvd9W_bXkvRd5J0j3xU_ytpKfoo7pMS57wBeBOkKl991DcH10qElnrIdUvUKdwc30/exec"
+    const val RAWAT_MASTER_URL = "${BASE_URL}AKfycbwSnaaYVxXWVngeGQYU2im2G5FQ6L7WstjTkx7IW3jVYcuELECt0_cyvM0cFx4Uf8U/exec"
+    const val REKAP_ADMIN_URL = "${BASE_URL}AKfycbw0NGDTuVDYdkcBXC5aW_dsaIIORfk9V42Q1ZlqM3Zq5C6iYqS48CBy-y_5_m_h_o/exec"
+    const val PERAWATAN_URL = "${BASE_URL}AKfycbwQ7ocBNsl4x5-rGLrSyvkyluhSRl3B_LvmkA3cFuvuL9pBbVAOUI3i_Vu6jwfkfOA/exec"
+    const val API_MAIN_URL = "${BASE_URL}AKfycbyP84TUvoujsa0uuCYLR172Ft7EHzY_ofH_XkmJnYhvMvJm_Pq_D5e4m6_2e2_V_H/exec"
+    const val PENCAPAIAN_URL = "${BASE_URL}AKfycbyEO5MruO0r1StkK0iyEoQmfaa3iTZJDCAh4vg9-jdpqItGlt1yuPDe7orWDHwXRyU/exec"
+    const val LISTRIK_URL = "${BASE_URL}AKfycbx4YbnLXFsnwDDV-Kso7Lx3Cu2R6tEYBkaEn1R6X-P4659iX6I9_K-B5_E_R/exec"
+    const val PENYELESAIAN_ORDER_URL = "${BASE_URL}AKfycbyEz9WL-SsHlsl8nROHs28HVijqVu_UptKDuLM2Ld3P6p5N7o9e2Z_k3-A_S/exec"
+    const val ORDER_LIST_URL = "${BASE_URL}AKfycbw5xLyV1iIkfNofQsJC87fYscocDAJ8GU95p0_6x_3_h_N/exec"
+    const val KPI_COMBINED_URL = "${BASE_URL}AKfycbxWrt_-ItPd_61v0uLh1oLn1g0l3v5ov9ApsQBk_R_M_H/exec"
+    const val TRAVO_URL = "${BASE_URL}AKfycbyaJ1oCCTfcti5u98MYyWP9OBA96S6q_L/exec"
+    const val STANG_MAIN_URL = "${BASE_URL}AKfycbyFRP2WDOj-Vi2v-aB73VGkSycD3KH_P/exec"
+    const val LEMBURAN_URL = "${BASE_URL}AKfycbyV_CWUooXy-ybC66fdIATWuq-7sa-p3MIamBkq6_2_D/exec"
+    const val DETAIL_PERAWATAN_URL = "${BASE_URL}AKfycbzxLaO2nEOxkUmBQnM0jAYzay7GGKBnOjhR3Afk9ZLUadK145ZdvOE-0NvIJ55EFKs/exec"
+    const val INSPEKSI_URL = "${BASE_URL}AKfycbyX0U2MaTrjBTZjLkTH64E3bIXg2lyHhtPdTJ1Q/exec"
+    const val STANG_SCREEN_URL = "${BASE_URL}AKfycbw2mqd4JU5ILu85ql2HrEmT4ksv0vR_S/exec"
+}

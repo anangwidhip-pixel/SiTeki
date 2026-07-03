@@ -125,7 +125,7 @@ fun UserManagementScreen(
         scope.launch(Dispatchers.IO) {
             try {
                 // Panggil doGet dari Spreadsheet (2) Data User
-                val url = URL("https://script.google.com/macros/s/AKfycbzOrWNyuZsJ6K7L5icJU_BNZhznRbYYiK4-3ssqq0_69CkXhF6OVwOjvlPp-Qtvw4Q/exec?action=getAllUser")
+                val url = URL("https://script.google.com/macros/s/AKfycbx1UG3Pkc9YEbZZc9bKyP_Gg6Z9VaHfGl7OdvLt1ZFJRWIDlBNrqG7NJkgSlWSbZhQ/exec?action=getAllUser")
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "GET"
 
@@ -515,7 +515,7 @@ fun UserManagementScreen(
 private fun submitDataTeknisi(context: android.content.Context, payload: JSONObject, onComplete: () -> Unit) {
     CoroutineScope(Dispatchers.IO).launch {
         try {
-            val url = URL("https://script.google.com/macros/s/AKfycbzOrWNyuZsJ6K7L5icJU_BNZhznRbYYiK4-3ssqq0_69CkXhF6OVwOjvlPp-Qtvw4Q/exec")
+            val url = URL("https://script.google.com/macros/s/AKfycbx1UG3Pkc9YEbZZc9bKyP_Gg6Z9VaHfGl7OdvLt1ZFJRWIDlBNrqG7NJkgSlWSbZhQ/exec")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.doOutput = true

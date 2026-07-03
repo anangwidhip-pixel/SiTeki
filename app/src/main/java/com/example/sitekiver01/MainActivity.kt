@@ -66,6 +66,7 @@ import java.util.*
 import kotlin.math.absoluteValue
 import androidx.compose.ui.tooling.preview.Preview as ComposePreview
 import kotlinx.coroutines.async
+import kotlinx.coroutines.CancellationException
 
 const val STANG_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyFRP2WDOj-Vi2v-aB73VGkSycD3KHbCwiMtoS7BnXpPcAX3_4-YyvczwYd4_vIxQQ/exec"
 class MainActivity : ComponentActivity() {
@@ -128,9 +129,17 @@ suspend fun fetchOpenOrders(url: String): List<OrderItem> {
 
 @Composable
 fun AppNavigation() {
+
     val context = LocalContext.current
     val navController = androidx.navigation.compose.rememberNavController()
     // REVISI: Mengubah default screen awal menuju Screen.Login demi keamanan otentikasi
+    var showSplash by remember { mutableStateOf(true) }
+    if (showSplash) {
+        SplashScreen(onTimeout = { showSplash = false })
+    } else {
+        // Tampilkan LoginScreen setelah Splash selesai
+        LoginScreen(onLoginSuccess = { /* Navigasi ke Dashboard */ })
+    }
     var currentScreen by remember { mutableStateOf(Screen.Login) }
     var webUrl by remember { mutableStateOf("") }
     var webTitle by remember { mutableStateOf("") }
@@ -197,6 +206,7 @@ fun AppNavigation() {
             Screen.WebView -> currentScreen = previousScreen
             Screen.DetailOrder, Screen.PenyelesaianOrder, Screen.BuatOrderKerja,
             Screen.OrderKerjaList, Screen.IsiPerawatan -> currentScreen = previousScreen
+
             else -> {
                 currentScreen = Screen.Dashboard
                 selectedIndex = 0
@@ -209,15 +219,32 @@ fun AppNavigation() {
             onDismissRequest = { showExitDialog = false },
             containerColor = SciFiGlass,
             modifier = Modifier.border(1.dp, SciFiBorderLight, RoundedCornerShape(28.dp)),
-            title = { Text(text = "Konfirmasi Keluar", color = Color.White, fontFamily = OrbitronFontFamily) },
-            text = { Text(text = "Apakah Anda akan keluar dari aplikasi?", color = SciFiTextMuted) },
+            title = {
+                Text(
+                    text = "Konfirmasi Keluar",
+                    color = Color.White,
+                    fontFamily = OrbitronFontFamily
+                )
+            },
+            text = {
+                Text(
+                    text = "Apakah Anda akan keluar dari aplikasi?",
+                    color = SciFiTextMuted
+                )
+            },
             confirmButton = {
-                Button(onClick = { (context as? Activity)?.finish() }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) {
+                Button(
+                    onClick = { (context as? Activity)?.finish() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
                     Text("Yes", color = Color.White)
                 }
             },
             dismissButton = {
-                OutlinedButton(onClick = { showExitDialog = false }, border = BorderStroke(1.dp, SciFiBorderLight)) {
+                OutlinedButton(
+                    onClick = { showExitDialog = false },
+                    border = BorderStroke(1.dp, SciFiBorderLight)
+                ) {
                     Text("No", color = Color.White)
                 }
             }
@@ -232,7 +259,10 @@ fun AppNavigation() {
                     .wrapContentHeight(),
                 shape = RoundedCornerShape(28.dp),
                 color = Color(0xFF0F172A),
-                border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
+                border = BorderStroke(
+                    1.dp,
+                    Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent))
+                )
             ) {
                 Column(
                     modifier = Modifier.padding(24.dp),
@@ -306,269 +336,362 @@ fun AppNavigation() {
     }
 
     // REVISI: Bottom bar hanya dirender jika user sukses login
-    val showBottomBar = currentScreen in listOf(Screen.Dashboard, Screen.QRScanner) && UserSession.isLoggedIn
+    val showBottomBar =
+        currentScreen in listOf(Screen.Dashboard, Screen.QRScanner) && UserSession.isLoggedIn
 
-    Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
-        SciFiBackground()
-        Scaffold(
-            containerColor = Color.Transparent,
-            bottomBar = {
-                if (showBottomBar) {
-                    CustomBottomNavigation(
-                        selectedIndex = selectedIndex,
-                        onItemSelected = { index ->
-                            selectedIndex = index
-                            when (index) {
-                                0 -> currentScreen = Screen.Dashboard
-                                1 -> showPerawatanPopup = true
-                                2 -> currentScreen = Screen.QRScanner
-                                3 -> currentScreen = Screen.LapKerja
-                                4 -> { /* Akun */ }
-                            }
-                        }
-                    )
-                }
-            }
-        ) { innerPadding ->
-            Box(modifier = Modifier.fillMaxSize()) {
-                val modifierWithPadding = Modifier.padding(bottom = if (showBottomBar) innerPadding.calculateBottomPadding() else 0.dp)
-
-                when (currentScreen) {
-                    // REVISI: Menambahkan gerbang masuk otentikasi login
-                    Screen.Login -> {
-                        LoginScreen(
-                            onLoginSuccess = {
-                                currentScreen = Screen.Dashboard
-                                selectedIndex = 0
-                            }
-                        )
-                    }
-
-                    Screen.Dashboard -> {
-                        DashboardScreen(
-                            modifier = modifierWithPadding,
-                            onNavigateToPerawatan = { showPerawatanPopup = true },
-                            onNavigateToStang = { currentScreen = Screen.Stang },
-                            onNavigateToKPI = { currentScreen = Screen.KPI },
-                            onNavigateToListrik = { currentScreen = Screen.Listrik },
-                            onNavigateToLapKerja = { currentScreen = Screen.LapKerja; selectedIndex = 3 },
-                            onOrderKerjaClick = { order ->
-                                currentOrderDetail = order
-                                currentOrderRowIndex = order.rowIndex
-                                currentOrderMesin = order.namaMesin
-                                currentScreen = Screen.DetailOrder
-                            },
-                            onNavigateToStokPart = { currentScreen = Screen.StokPart },
-                            onNavigateToWebView = navigateToWebView,
-                            onNavigateToOrderKerjaList = { currentScreen = Screen.OrderKerjaList },
-                            onNavigateToIsiPerawatan = onNavigateToIsiPerawatan,
-                            onNavigateToLainnya = { currentScreen = Screen.Lainnya },
-                            onNavigateToManagementUser = { currentScreen = Screen.ManagementUser },
-                            onLogout = {
-                                UserSession.logout()
-                                currentScreen = Screen.Login
-                            }
-                        )
-                    }
-
-                    Screen.OrderKerjaList -> {
-                        OrderKerjaListScreen(
-                            onBack = { currentScreen = Screen.Dashboard },
-                            onOrderClick = { order ->
-                                currentOrderDetail = order
-                                currentScreen = Screen.DetailOrder
-                            },
-                            onBuatOrderClick = { currentScreen = Screen.BuatOrderKerja }
-                        )
-                    }
-
-                    Screen.DetailOrder -> {
-                        currentOrderDetail?.let { order ->
-                            DetailOrderScreen(
-                                order = order,
-                                onBack = { currentScreen = Screen.Dashboard },
-                                onLakukanPerbaikan = { selectedOrder ->
-                                    currentOrderRowIndex = selectedOrder.rowIndex
-                                    currentOrderMesin = selectedOrder.namaMesin
-                                    currentScreen = Screen.PenyelesaianOrder
+    Crossfade(targetState = if (showSplash) Screen.Splash else currentScreen) { targetScreen ->
+        if (targetScreen == Screen.Splash) {
+            SplashScreen(onTimeout = { showSplash = false })
+        } else {
+            Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
+                SciFiBackground()
+                Scaffold(
+                    containerColor = Color.Transparent,
+                    bottomBar = {
+                        if (showBottomBar) {
+                            CustomBottomNavigation(
+                                selectedIndex = selectedIndex,
+                                onItemSelected = { index ->
+                                    selectedIndex = index
+                                    when (index) {
+                                        0 -> currentScreen = Screen.Dashboard
+                                        1 -> showPerawatanPopup = true
+                                        2 -> currentScreen = Screen.QRScanner
+                                        3 -> currentScreen = Screen.LapKerja
+                                        4 -> { /* Akun */
+                                        }
+                                    }
                                 }
                             )
-                        } ?: run {
-                            currentScreen = Screen.Dashboard
                         }
                     }
+                ) { innerPadding ->
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        val modifierWithPadding =
+                            Modifier.padding(bottom = if (showBottomBar) innerPadding.calculateBottomPadding() else 0.dp)
 
-                    Screen.PenyelesaianOrder -> {
-                        PenyelesaianOrderScreen(
-                            orderRowIndex = currentOrderRowIndex,
-                            namaMesin = currentOrderMesin,
-                            onBack = { currentScreen = Screen.Dashboard },
-                            onSuccess = { currentScreen = Screen.Dashboard }
-                        )
-                    }
-                    Screen.ManagementUser -> {
-                        UserManagementScreen(
-                            onBack = { currentScreen = Screen.Dashboard },
-                            onSuccess = {
-                                // Setelah sukses sinkronisasi data, kembalikan ke Dashboard atau beri aksi lain
-                                currentScreen = Screen.Dashboard
+                        when (currentScreen) {
+                            // REVISI: Menambahkan gerbang masuk otentikasi login
+                            Screen.Login -> {
+                                LoginScreen(
+                                    onLoginSuccess = {
+                                        currentScreen = Screen.Dashboard
+                                        selectedIndex = 0
+                                    }
+                                )
                             }
-                        )
-                    }
-                    Screen.BuatOrderKerja -> {
-                        BuatOrderKerjaScreen(
-                            machineNameFromQR = currentOrderMesinFromQR,
-                            onBack = {
-                                currentScreen = Screen.Dashboard
-                                currentOrderMesinFromQR = ""
-                            },
-                            onSuccess = {
-                                currentScreen = Screen.Dashboard
-                                currentOrderMesinFromQR = ""
+
+                            Screen.Dashboard -> {
+                                DashboardScreen(
+                                    modifier = modifierWithPadding,
+                                    onNavigateToPerawatan = { showPerawatanPopup = true },
+                                    onNavigateToStang = { currentScreen = Screen.Stang },
+                                    onNavigateToKPI = { currentScreen = Screen.KPI },
+                                    onNavigateToListrik = { currentScreen = Screen.Listrik },
+                                    onNavigateToLapKerja = {
+                                        currentScreen = Screen.LapKerja; selectedIndex = 3
+                                    },
+                                    onOrderKerjaClick = { order ->
+                                        currentOrderDetail = order
+                                        currentOrderRowIndex = order.rowIndex
+                                        currentOrderMesin = order.namaMesin
+                                        currentScreen = Screen.DetailOrder
+                                    },
+                                    onNavigateToStokPart = { currentScreen = Screen.StokPart },
+                                    onNavigateToWebView = navigateToWebView,
+                                    onNavigateToOrderKerjaList = {
+                                        currentScreen = Screen.OrderKerjaList
+                                    },
+                                    onNavigateToIsiPerawatan = onNavigateToIsiPerawatan,
+                                    onNavigateToLainnya = { currentScreen = Screen.Lainnya },
+                                    onNavigateToManagementUser = {
+                                        currentScreen = Screen.ManagementUser
+                                    },
+                                    onLogout = {
+                                        UserSession.logout()
+                                        currentScreen = Screen.Login
+                                    }
+                                )
                             }
-                        )
-                    }
-                    Screen.Perawatan -> {
-                        PerawatanScreen(
-                            modifier = modifierWithPadding.padding(top = innerPadding.calculateTopPadding()),
-                            onBack = { currentScreen = Screen.Dashboard; selectedIndex = 0 },
-                            onNavigateToWebView = navigateToWebView,
-                            onNavigateToIsiPerawatan = { machineName, tanggal, jenis ->
-                                isiPerawatanMachine = machineName
-                                isiPerawatanDate = tanggal
-                                isiPerawatanWaktu = jenis
-                                previousScreen = Screen.Perawatan
-                                currentScreen = Screen.IsiPerawatan
-                            },
-                            onNavigateToDetail = { currentScreen = Screen.DetailPerawatan }
-                        )
-                    }
-                    Screen.Katalog -> {
-                        KatalogScreen(
-                            modifier = modifierWithPadding.padding(top = innerPadding.calculateTopPadding()),
-                            onBack = { currentScreen = Screen.Lainnya },
-                            onNavigateToWebView = navigateToWebView
-                        )
-                    }
-                    Screen.WebView -> {
-                        Box(modifier = Modifier.padding(innerPadding)) {
-                            WebViewScreen(url = webUrl, title = webTitle, onBack = { currentScreen = previousScreen })
-                        }
-                    }
-                    Screen.QRScanner -> {
-                        QRScannerScreen(
-                            onBack = {
-                                currentScreen = Screen.Dashboard
-                                selectedIndex = 0
+
+                            Screen.OrderKerjaList -> {
+                                OrderKerjaListScreen(
+                                    onBack = { currentScreen = Screen.Dashboard },
+                                    onOrderClick = { order ->
+                                        currentOrderDetail = order
+                                        currentScreen = Screen.DetailOrder
+                                    },
+                                    onBuatOrderClick = { currentScreen = Screen.BuatOrderKerja }
+                                )
                             }
-                        )
-                    }
-                    Screen.KPI -> {
-                        KPIScreen(
-                            onBack = { currentScreen = Screen.Dashboard },
-                            onNavigateToDetailPerawatan = { currentScreen = Screen.DetailPerawatan },
-                            onNavigateToDetailDowntime = { currentScreen = Screen.DetailDowntime }
-                        )
-                    }
-                    Screen.DetailPerawatan -> { DetailPerawatanScreen(onBack = { currentScreen = Screen.KPI }) }
-                    Screen.DetailDowntime -> { DetailDowntimeScreen(onBack = { currentScreen = Screen.KPI }) }
-                    Screen.Listrik -> {
-                        CekListrikScreen(
-                            onBack = { currentScreen = Screen.Dashboard; selectedIndex = 0 },
-                            onNavigateToDetail = { currentScreen = Screen.Detaillistrik },
-                            editData = editDataListrik,
-                            onEditFinished = { editDataListrik = null }
-                        )
-                    }
-                    Screen.Detaillistrik -> {
-                        DataListrikScreen(
-                            onBack = { currentScreen = Screen.Listrik },
-                            onEditData = { data ->
-                                editDataListrik = data
-                                currentScreen = Screen.Listrik
-                            }
-                        )
-                    }
-                    Screen.LapKerja -> {
-                        LapKerjaScreen(
-                            onBack = { currentScreen = Screen.Dashboard; selectedIndex = 0 },
-                            onNavigateToWebView = navigateToWebView,
-                            onNavigateToIsiLaporan = { currentScreen = Screen.IsiLaporan }
-                        )
-                    }
-                    Screen.IsiLaporan -> { IsiLaporanScreen(onBack = { currentScreen = Screen.LapKerja }) }
-                    Screen.JadPerawatan -> { JadPerawatanScreen(onBack = { currentScreen = Screen.Dashboard },
-                        onNavigateToIsiPerawatan = onNavigateToIsiPerawatan
-                    ) }
-                    Screen.StokPart -> {
-                        StokPartScreen(
-                            onBack = { currentScreen = Screen.Dashboard },
-                            onOrderPart = { currentScreen = Screen.OrderPart },
-                            onDaftarBon = { currentScreen = Screen.DaftarOrder }
-                        )
-                    }
-                    Screen.OrderPart -> { OrderPartScreen(onBack = { currentScreen = Screen.StokPart }) }
-                    Screen.DaftarOrder -> { DaftarOrderScreen(onBack = { currentScreen = Screen.StokPart }) }
-                    Screen.IsiPerawatan -> {
-                        IsiPerawatanScreen(
-                            initialMachine = isiPerawatanMachine,
-                            initialDate = isiPerawatanDate,
-                            initialWaktu = isiPerawatanWaktu,
-                            onBack = { currentScreen = previousScreen }
-                        )
-                    }
-                    Screen.Lainnya -> {
-                        LainnyaScreen(
-                            onBack = { currentScreen = Screen.Dashboard },
-                            onNavigateToKatalog = { currentScreen = Screen.Katalog },
-                            onNavigateToLemburan = { currentScreen = Screen.IsiLemburan },
-                            // Tambahkan navigasi baru ke User Management
-                            onNavigateToUserMgmt = {
-                                if (UserSession.role == "Admin") {
-                                    currentScreen = Screen.ManagementUser
-                                } else {
-                                    Toast.makeText(context, "Hanya Admin yang memiliki akses!", Toast.LENGTH_SHORT).show()
+
+                            Screen.DetailOrder -> {
+                                currentOrderDetail?.let { order ->
+                                    DetailOrderScreen(
+                                        order = order,
+                                        onBack = { currentScreen = Screen.Dashboard },
+                                        onLakukanPerbaikan = { selectedOrder ->
+                                            currentOrderRowIndex = selectedOrder.rowIndex
+                                            currentOrderMesin = selectedOrder.namaMesin
+                                            currentScreen = Screen.PenyelesaianOrder
+                                        }
+                                    )
+                                } ?: run {
+                                    currentScreen = Screen.Dashboard
                                 }
                             }
-                        )
-                    }
-                    Screen.ManagementUser -> {
-                        UserManagementScreen(
-                            onBack = { currentScreen = Screen.Lainnya } // Memastikan state berubah ke 'Lainnya'
-                        )
-                    }
 
-                    Screen.IsiLemburan -> {
-                        IsiLemburanScreen(
-                            onBack = { currentScreen = Screen.Lainnya },
-                            onNavigateToRekap = { currentScreen = Screen.RekapAdmin } // Navigasi via state
-                        )
+                            Screen.PenyelesaianOrder -> {
+                                PenyelesaianOrderScreen(
+                                    orderRowIndex = currentOrderRowIndex,
+                                    namaMesin = currentOrderMesin,
+                                    onBack = { currentScreen = Screen.Dashboard },
+                                    onSuccess = { currentScreen = Screen.Dashboard }
+                                )
+                            }
+
+                            Screen.ManagementUser -> {
+                                UserManagementScreen(
+                                    onBack = { currentScreen = Screen.Dashboard },
+                                    onSuccess = {
+                                        // Setelah sukses sinkronisasi data, kembalikan ke Dashboard atau beri aksi lain
+                                        currentScreen = Screen.Dashboard
+                                    }
+                                )
+                            }
+
+                            Screen.BuatOrderKerja -> {
+                                BuatOrderKerjaScreen(
+                                    machineNameFromQR = currentOrderMesinFromQR,
+                                    onBack = {
+                                        currentScreen = Screen.Dashboard
+                                        currentOrderMesinFromQR = ""
+                                    },
+                                    onSuccess = {
+                                        currentScreen = Screen.Dashboard
+                                        currentOrderMesinFromQR = ""
+                                    }
+                                )
+                            }
+
+                            Screen.Perawatan -> {
+                                PerawatanScreen(
+                                    modifier = modifierWithPadding.padding(top = innerPadding.calculateTopPadding()),
+                                    onBack = {
+                                        currentScreen = Screen.Dashboard; selectedIndex = 0
+                                    },
+                                    onNavigateToWebView = navigateToWebView,
+                                    onNavigateToIsiPerawatan = { machineName, tanggal, jenis ->
+                                        isiPerawatanMachine = machineName
+                                        isiPerawatanDate = tanggal
+                                        isiPerawatanWaktu = jenis
+                                        previousScreen = Screen.Perawatan
+                                        currentScreen = Screen.IsiPerawatan
+                                    },
+                                    onNavigateToDetail = { currentScreen = Screen.DetailPerawatan }
+                                )
+                            }
+
+                            Screen.Katalog -> {
+                                KatalogScreen(
+                                    modifier = modifierWithPadding.padding(top = innerPadding.calculateTopPadding()),
+                                    onBack = { currentScreen = Screen.Lainnya },
+                                    onNavigateToWebView = navigateToWebView
+                                )
+                            }
+
+                            Screen.WebView -> {
+                                Box(modifier = Modifier.padding(innerPadding)) {
+                                    WebViewScreen(
+                                        url = webUrl,
+                                        title = webTitle,
+                                        onBack = { currentScreen = previousScreen })
+                                }
+                            }
+
+                            Screen.QRScanner -> {
+                                QRScannerScreen(
+                                    onBack = {
+                                        currentScreen = Screen.Dashboard
+                                        selectedIndex = 0
+                                    }
+                                )
+                            }
+
+                            Screen.KPI -> {
+                                KPIScreen(
+                                    onBack = { currentScreen = Screen.Dashboard },
+                                    onNavigateToDetailPerawatan = {
+                                        currentScreen = Screen.DetailPerawatan
+                                    },
+                                    onNavigateToDetailDowntime = {
+                                        currentScreen = Screen.DetailDowntime
+                                    }
+                                )
+                            }
+
+                            Screen.DetailPerawatan -> {
+                                DetailPerawatanScreen(onBack = { currentScreen = Screen.KPI })
+                            }
+
+                            Screen.DetailDowntime -> {
+                                DetailDowntimeScreen(onBack = { currentScreen = Screen.KPI })
+                            }
+
+                            Screen.Listrik -> {
+                                CekListrikScreen(
+                                    onBack = {
+                                        currentScreen = Screen.Dashboard; selectedIndex = 0
+                                    },
+                                    onNavigateToDetail = { currentScreen = Screen.Detaillistrik },
+                                    editData = editDataListrik,
+                                    onEditFinished = { editDataListrik = null }
+                                )
+                            }
+
+                            Screen.Detaillistrik -> {
+                                DataListrikScreen(
+                                    onBack = { currentScreen = Screen.Listrik },
+                                    onEditData = { data ->
+                                        editDataListrik = data
+                                        currentScreen = Screen.Listrik
+                                    }
+                                )
+                            }
+
+                            Screen.LapKerja -> {
+                                LapKerjaScreen(
+                                    onBack = {
+                                        currentScreen = Screen.Dashboard; selectedIndex = 0
+                                    },
+                                    onNavigateToWebView = navigateToWebView,
+                                    onNavigateToIsiLaporan = { currentScreen = Screen.IsiLaporan }
+                                )
+                            }
+
+                            Screen.IsiLaporan -> {
+                                IsiLaporanScreen(onBack = { currentScreen = Screen.LapKerja })
+                            }
+
+                            Screen.JadPerawatan -> {
+                                JadPerawatanScreen(
+                                    onBack = { currentScreen = Screen.Dashboard },
+                                    onNavigateToIsiPerawatan = onNavigateToIsiPerawatan
+                                )
+                            }
+
+                            Screen.StokPart -> {
+                                StokPartScreen(
+                                    onBack = { currentScreen = Screen.Dashboard },
+                                    onOrderPart = { currentScreen = Screen.OrderPart },
+                                    onDaftarBon = { currentScreen = Screen.DaftarOrder }
+                                )
+                            }
+
+                            Screen.OrderPart -> {
+                                OrderPartScreen(onBack = { currentScreen = Screen.StokPart })
+                            }
+
+                            Screen.DaftarOrder -> {
+                                DaftarOrderScreen(onBack = { currentScreen = Screen.StokPart })
+                            }
+
+                            Screen.IsiPerawatan -> {
+                                IsiPerawatanScreen(
+                                    initialMachine = isiPerawatanMachine,
+                                    initialDate = isiPerawatanDate,
+                                    initialWaktu = isiPerawatanWaktu,
+                                    onBack = { currentScreen = previousScreen }
+                                )
+                            }
+
+                            Screen.Lainnya -> {
+                                LainnyaScreen(
+                                    onBack = { currentScreen = Screen.Dashboard },
+                                    onNavigateToKatalog = { currentScreen = Screen.Katalog },
+                                    onNavigateToTravo = { currentScreen = Screen.TravoMenu },
+                                    onNavigateToLemburan = { currentScreen = Screen.IsiLemburan },
+                                    // Tambahkan navigasi baru ke User Management
+                                    onNavigateToUserMgmt = {
+                                        if (UserSession.role == "Admin") {
+                                            currentScreen = Screen.ManagementUser
+                                        } else {
+                                            Toast.makeText(
+                                                context,
+                                                "Hanya Admin yang memiliki akses!",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                )
+                            }
+
+                            Screen.TravoMenu -> {
+                                TravoMenuScreen(
+                                    onBack = {
+                                        currentScreen = Screen.Lainnya
+                                    }, // Atau ke Screen.Dashboard
+                                    onNavigateToInspeksi = {
+                                        currentScreen = Screen.TravoInspeksi
+                                    }, // Pastikan ini terdaftar
+                                    onNavigateToDataTravo = {
+                                        currentScreen = Screen.TravoData
+                                    }      // Pastikan ini terdaftar
+                                )
+                            }
+
+// Tambahkan juga layar tujuan agar tidak "nyangkut"
+                            Screen.TravoInspeksi -> {
+                                IsiInspeksiScreen(onBack = { currentScreen = Screen.TravoMenu })
+                            }
+
+                            Screen.TravoData -> {
+                                DataTravoScreen(onBack = { currentScreen = Screen.TravoMenu })
+                            }
+
+                            Screen.ManagementUser -> {
+                                UserManagementScreen(
+                                    onBack = {
+                                        currentScreen = Screen.Lainnya
+                                    } // Memastikan state berubah ke 'Lainnya'
+                                )
+                            }
+
+                            Screen.IsiLemburan -> {
+                                IsiLemburanScreen(
+                                    onBack = { currentScreen = Screen.Lainnya },
+                                    onNavigateToRekap = {
+                                        currentScreen = Screen.RekapAdmin
+                                    } // Navigasi via state
+                                )
+                            }
+
+                            Screen.Stang -> {
+                                StangScreen(
+                                    onBack = { currentScreen = Screen.Dashboard }
+                                )
+                            }
+
+                            Screen.RekapAdmin -> {
+                                RekapAdminScreen(
+                                    onBack = { currentScreen = Screen.IsiLemburan }
+                                )
+                            }
+
+
+                            // REVISI: Layar Manajemen Pendaftaran Karyawan Baru
+
+                            else -> {
+                                currentScreen = Screen.Dashboard
+                            }
+
+                        }
                     }
-                    Screen.Stang -> {
-                        StangScreen(
-                            onBack = { currentScreen = Screen.Dashboard }
-                        )
-                    }
-
-                    Screen.RekapAdmin -> {
-                        RekapAdminScreen(
-                            onBack = { currentScreen = Screen.IsiLemburan }
-                        )
-                    }
-
-
-                    // REVISI: Layar Manajemen Pendaftaran Karyawan Baru
-
-                    else -> {
-                        currentScreen = Screen.Dashboard
-                    }
-
                 }
             }
         }
     }
 }
-
 data class NewsItem(val title: String, val description: String, val date: String, val image: Int)
 val OrbitronFontFamily = FontFamily.SansSerif
 
@@ -1017,8 +1140,12 @@ fun TopHeader(
 
                 notificationData = list.distinctBy { it.namaAsli }
 
+            } catch (e: CancellationException) {
+                // Jangan log apapun di sini, ini normal saat pindah halaman
+                throw e
             } catch (e: Exception) {
-                Log.e("TopHeader", "Error fetching maintenance data", e)
+                // Ini baru error yang sebenarnya (masalah internet/format data)
+                Log.e("TopHeader", "Error fetching maintenance data: ${e.message}")
             } finally {
                 isLoading = false
             }

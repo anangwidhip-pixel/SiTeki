@@ -125,7 +125,7 @@ class PerawatanViewModel : ViewModel() {
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     isLoading = false
-                    Log.e("PerawatanVM", "Error: ${e.message}")
+                    Log.e("PerawatanVM", "Error: ${e.message ?: e.toString()}")
                 }
             }
         }

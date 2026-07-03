@@ -41,7 +41,8 @@ fun LainnyaScreen(
     onBack: () -> Unit,
     onNavigateToKatalog: () -> Unit,
     onNavigateToUserMgmt: () -> Unit, // Satu gerbang untuk database siber teknisi detail
-    onNavigateToLemburan: () -> Unit
+    onNavigateToLemburan: () -> Unit,
+    onNavigateToTravo: () -> Unit //
 ) {
     val context = LocalContext.current
 
@@ -103,9 +104,12 @@ fun LainnyaScreen(
                         menuItem = item,
                         onClick = {
                             when (item.title.uppercase()) {
-                                "TEKNISI"  -> onNavigateToUserMgmt() // Tombol TEKNISI sekarang mengarah ke User Management A-Z
+                                "TEKNISI"  -> onNavigateToUserMgmt()
                                 "KATALOG"  -> onNavigateToKatalog()
                                 "LEMBURAN" -> onNavigateToLemburan()
+                                // --- TAMBAHKAN KODE INI ---
+                                "TRAVO"    -> onNavigateToTravo()
+                                // --------------------------
                                 else -> Toast.makeText(context, "Membuka ${item.title}", Toast.LENGTH_SHORT).show()
                             }
                         }
