@@ -120,7 +120,7 @@ fun StokPartScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
 
         // PONDASI UTAMA: Background Mesh Grid Animasi Global
         SciFiBackground()
@@ -180,12 +180,12 @@ fun StokPartScreenContent(
                     verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
                         onClick = onBack,
-                        modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)
-                    ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = Color.White) }
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
+                    ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = MaterialTheme.colorScheme.onSurface) }
                     Spacer(Modifier.width(16.dp))
                     Text(
                         "STOK SPAREPART",
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 18.sp,
                         fontFamily = OrbitronFontFamily,

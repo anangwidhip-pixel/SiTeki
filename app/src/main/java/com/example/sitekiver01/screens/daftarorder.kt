@@ -82,7 +82,7 @@ fun DaftarOrderScreen(onBack: () -> Unit) {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
 
         // PONDASI UTAMA: Background Mesh Grid Animasi Global
         SciFiBackground()

@@ -61,19 +61,29 @@ fun OrderKerjaListScreen(
 
     // Filter Logic
     LaunchedEffect(searchQuery, selectedMonth) {
+        val monthAliases = mapOf(
+            "Januari" to listOf("jan"), "Februari" to listOf("feb"),
+            "Maret" to listOf("mar"), "April" to listOf("apr"),
+            "Mei" to listOf("mei", "may"), "Juni" to listOf("jun"),
+            "Juli" to listOf("jul"), "Agustus" to listOf("agu", "aug"),
+            "September" to listOf("sep"), "Oktober" to listOf("okt", "oct"),
+            "November" to listOf("nov"), "Desember" to listOf("des", "dec")
+        )
         filteredOrders = allOrders.filter { order ->
             val matchSearch = order.namaMesin.contains(searchQuery, ignoreCase = true) ||
                     order.kerusakan.contains(searchQuery, ignoreCase = true) ||
                     order.bagianOrder.contains(searchQuery, ignoreCase = true)
 
             val matchMonth = selectedMonth == "Semua Bulan" ||
-                    order.tanggal.contains(selectedMonth.take(3), ignoreCase = true)
+                    monthAliases[selectedMonth].orEmpty().any {
+                        order.tanggal.contains(it, ignoreCase = true)
+                    }
 
             matchSearch && matchMonth
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
 
         // PONDASI UTAMA: Background Mesh Grid Animasi Global
         SciFiBackground()
@@ -95,12 +105,12 @@ fun OrderKerjaListScreen(
                     ) {
                         IconButton(
                             onClick = onBack,
-                            modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)
-                        ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = Color.White) }
+                            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
+                        ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = MaterialTheme.colorScheme.onSurface) }
                         Spacer(Modifier.width(16.dp))
                         Text(
                             "DAFTAR ORDER KERJA",
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
                             fontFamily = OrbitronFontFamily,
@@ -162,9 +172,7 @@ fun OrderKerjaListScreen(
                 ModernSectionHeader("LIST ORDER KERJA ACTIVE", Icons.AutoMirrored.Filled.List)
 
                 if (isLoading) {
-                    Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
-                        CircularProgressIndicator(color = SciFiCyan)
-                    }
+                    DatabaseLoadingState(label = "Memuat order kerja", modifier = Modifier.weight(1f).fillMaxWidth())
                 } else if (filteredOrders.isEmpty()) {
                     Box(Modifier.weight(1f).fillMaxWidth(), Alignment.Center) {
                         Text("Tidak ada data order", color = SciFiTextMuted, fontSize = 14.sp)
@@ -277,7 +285,7 @@ fun OrderCardModern(order: OrderItem, onClick: () -> Unit) {
 private fun fetchAllOrders(onResult: (List<OrderItem>) -> Unit) {
     CoroutineScope(Dispatchers.IO).launch {
         try {
-            val url = URL("https://script.google.com/macros/s/AKfycbw5xLyV1iIkfNofQsJC87fYscocDAJ8GU5iQh1WunHjYy8zS-T6sFkb77z79AptiTY/exec?action=getAllOrders")
+            val url = URL("https://script.google.com/macros/s/AKfycbzbmKFheI55ccsJ_kLdOzy6VIdGpgKIy2s9pljrIM8sNbgJ_RLywnzF-Q2sJTslVQU/exec?action=getAllOrders")
 
             val text = url.readText()
             val array = JSONArray(text)

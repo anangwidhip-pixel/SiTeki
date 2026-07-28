@@ -272,11 +272,11 @@ fun IsiLemburanScreen(
                     IconButton(
                         onClick = onBack,
                         modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)
-                    ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = Color.White) }
+                    ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = MaterialTheme.colorScheme.onSurface) }
                     Spacer(Modifier.width(16.dp))
                     Text(
-                        "ISI LEMBURAN",
-                        color = Color.White,
+                        "Lemburan",
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 18.sp,
                         fontFamily = OrbitronFontFamily
@@ -1233,7 +1233,6 @@ suspend fun hapusLemburan(
                 put("timestampKey", timestampKey)
             }
 
-            Log.d("HapusLemburan", "Mengirim request: $json")
 
             conn.outputStream.use { output ->
                 output.write(json.toString().toByteArray(Charsets.UTF_8))
@@ -1247,8 +1246,6 @@ suspend fun hapusLemburan(
                     ?: "HTTP $responseCode"
             }
 
-            Log.d("HapusLemburan", "Response Code: $responseCode")
-            Log.d("HapusLemburan", "Response: $response")
 
             if (response.contains("Success", ignoreCase = true)) {
                 Pair(true, response)

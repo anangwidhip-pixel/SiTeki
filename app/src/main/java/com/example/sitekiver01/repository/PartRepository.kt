@@ -1,8 +1,11 @@
 package com.example.sitekiver01.repository
 
 import android.util.Log
+import com.example.sitekiver01.APIConfig
+import com.example.sitekiver01.UserSession
 import com.example.sitekiver01.model.Part
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Source
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -21,9 +24,10 @@ class PartRepository {
                 val url = URL(scriptUrl)
                 val connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = "GET"
+                connection.connectTimeout = 10_000
+                connection.readTimeout = 30_000
                 
                 val response = connection.inputStream.bufferedReader().use { it.readText() }
-                Log.d("PartRepository", "Response from spreadsheet: $response")
                 
                 val list = mutableListOf<Part>()
                 
@@ -73,13 +77,12 @@ class PartRepository {
     }
 
     private fun parsePartFromArray(array: JSONArray): Part {
-        // Berdasarkan struktur umum spreadsheet: [index, Kategori, Nama, Ukuran, ..., Jenis Komponen]
-        // Jika spreadsheet mengembalikan baris sebagai array
+        // Struktur sheet Part: [Kategori, Nama, Ukuran/Kode, Jenis Komponen]
         return Part(
-            kategori = array.optString(1, ""),
-            nama = array.optString(2, ""),
-            ukuran = array.optString(3, ""),
-            jenisKomponen = array.optString(array.length() - 1, "")
+            kategori = array.optString(0, ""),
+            nama = array.optString(1, ""),
+            ukuran = array.optString(2, ""),
+            jenisKomponen = array.optString(3, "")
         )
     }
 
@@ -114,6 +117,8 @@ class PartRepository {
                 batch.set(docRef, data)
             }
             batch.commit().await()
+            memoryCache = emptyList()
+            cacheTime = 0L
             Log.d("PartRepository", "Migration successful: ${spreadsheetData.size} documents written")
             Result.success(spreadsheetData.size)
         } catch (e: Exception) {
@@ -122,12 +127,23 @@ class PartRepository {
         }
     }
 
-    suspend fun getAllPart(): List<Part> {
+    suspend fun getAllPart(forceRefresh: Boolean = false): List<Part> {
+        val now = System.currentTimeMillis()
+        if (!forceRefresh && memoryCache.isNotEmpty() && now - cacheTime < CACHE_TTL_MS) {
+            return memoryCache
+        }
         return try {
-            val snapshot = partCollection.get().await()
+            val cachedSnapshot = if (!forceRefresh) runCatching {
+                partCollection.get(Source.CACHE).await()
+            }.getOrNull() else null
+            val snapshot = if (cachedSnapshot != null && !cachedSnapshot.isEmpty) {
+                cachedSnapshot
+            } else {
+                partCollection.get(Source.SERVER).await()
+            }
             Log.d("PartRepository", "Fetched ${snapshot.size()} documents from master_part")
             
-            snapshot.documents.mapNotNull { doc ->
+            val result = snapshot.documents.mapNotNull { doc ->
                 try {
                     Part(
                         id = doc.id,
@@ -140,27 +156,69 @@ class PartRepository {
                     null
                 }
             }
+            if (result.isNotEmpty()) {
+                memoryCache = result
+                cacheTime = now
+            }
+            result
         } catch (e: Exception) {
             Log.e("PartRepository", "Error getAllPart: ${e.message}")
-            emptyList()
+            memoryCache
         }
     }
 
     suspend fun addPart(part: Part): Boolean {
-        return try {
-            val docRef = partCollection.document()
-            part.id = docRef.id
-            val data = mapOf(
-                "Kategori" to part.kategori,
-                "Nama" to part.nama,
-                "Ukuran" to part.ukuran,
-                "Jenis Komponen" to part.jenisKomponen
-            )
-            docRef.set(data).await()
-            true
-        } catch (e: Exception) {
-            Log.e("PartRepository", "Error addPart: ${e.message}")
-            false
+        return withContext(Dispatchers.IO) {
+            try {
+                require(UserSession.token.isNotBlank()) {
+                    "Sesi Admin tidak tersedia. Silakan masuk ulang."
+                }
+                val payload = JSONObject().apply {
+                    put("action", "addMasterPart")
+                    put("token", UserSession.token)
+                    put("kategori", part.kategori.trim())
+                    put("nama", part.nama.trim())
+                    put("ukuran", part.ukuran.trim())
+                    put("jenisKomponen", part.jenisKomponen.trim())
+                    put("satuan", "Pcs")
+                    put("stokAwal", 0)
+                }
+                val connection = (URL(APIConfig.LAPORAN_URL).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 15_000
+                    readTimeout = 90_000
+                    doOutput = true
+                    setRequestProperty("Content-Type", "text/plain;charset=UTF-8")
+                }
+                connection.outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(payload.toString()) }
+                val responseCode = connection.responseCode
+                val responseText = (if (responseCode in 200..299) connection.inputStream else connection.errorStream)
+                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                val result = JSONObject(responseText.ifBlank { "{}" })
+                val success = responseCode in 200..299 &&
+                    (result.optBoolean("success") || result.optString("status").equals("success", true)) &&
+                    result.optBoolean("firestoreSynced") &&
+                    result.optBoolean("stockSynced")
+                if (!success) {
+                    throw IllegalStateException(
+                        result.optString("message").ifBlank {
+                            "Part belum tersinkron ke Firestore dan tab Stok."
+                        }
+                    )
+                }
+                memoryCache = emptyList()
+                cacheTime = 0L
+                true
+            } catch (e: Exception) {
+                Log.e("PartRepository", "Error addPart via backend: ${e.message}", e)
+                false
+            }
         }
+    }
+
+    companion object {
+        private const val CACHE_TTL_MS = 15 * 60 * 1000L
+        @Volatile private var cacheTime = 0L
+        @Volatile private var memoryCache: List<Part> = emptyList()
     }
 }

@@ -47,6 +47,31 @@ import java.text.SimpleDateFormat
 import java.util.*
 import com.example.sitekiver01.components.*
 import com.example.sitekiver01.OrbitronFontFamily
+import com.example.sitekiver01.APIConfig
+
+internal object ReportDataCache {
+    private const val TTL_MS = 2 * 60 * 1000L
+    private data class Entry(val savedAt: Long, val rows: List<JSONObject>)
+    private val entries = mutableMapOf<String, Entry>()
+
+    @Synchronized
+    fun get(key: String): List<JSONObject>? {
+        val entry = entries[key] ?: return null
+        if (System.currentTimeMillis() - entry.savedAt > TTL_MS) {
+            entries.remove(key)
+            return null
+        }
+        return entry.rows
+    }
+
+    @Synchronized
+    fun put(key: String, rows: List<JSONObject>) {
+        entries[key] = Entry(System.currentTimeMillis(), rows)
+    }
+
+    @Synchronized
+    fun clear() = entries.clear()
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,15 +111,25 @@ fun LapKerjaScreen(
                 val encodedTglAwal = URLEncoder.encode(tglAwalRaw, "UTF-8")
                 val encodedTglAkhir = URLEncoder.encode(tglAkhirRaw, "UTF-8")
 
-                val scriptUrl = "https://script.google.com/macros/s/AKfycbwYHHf8ONKbs9m5CppnzUuo067CBvrqRRfLYzl5ABwOH81sVWnFD8AyPx6F6Vf3uC4/exec"
+                val scriptUrl = APIConfig.LAPORAN_URL
                 val urlString = "$scriptUrl?action=getDataLapKerja&bulan=$encodedBulan&tglAwal=$encodedTglAwal&tglAkhir=$encodedTglAkhir"
 
-                val response = URL(urlString).readText()
+                ReportDataCache.get(urlString)?.let {
+                    dataList = it
+                    return@withContext
+                }
+                val connection=URL(urlString).openConnection().apply {
+                    connectTimeout=10_000
+                    readTimeout=30_000
+                    useCaches=true
+                }
+                val response=connection.getInputStream().bufferedReader().use { it.readText() }
                 if (response.trim().startsWith("[")) {
                     val jsonArray = JSONArray(response)
                     val list = mutableListOf<JSONObject>()
                     for (i in 0 until jsonArray.length()) list.add(jsonArray.getJSONObject(i))
                     dataList = list
+                    ReportDataCache.put(urlString,list)
                 } else dataList = emptyList()
             } catch (e: Exception) {
                 Log.e("LapKerja", "Error fetch: ${e.message}")
@@ -228,12 +263,12 @@ fun LapKerjaScreenContent(
                 ) {
                     IconButton(
                         onClick = onBack,
-                        modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)
-                    ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = Color.White) }
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
+                    ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = MaterialTheme.colorScheme.onSurface) }
                     Spacer(Modifier.width(16.dp))
                     Text(
-                        "LAPORAN PEKERJAAN",
-                        color = Color.White,
+                        "Laporan Pekerjaan",
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 18.sp,
                         fontFamily = OrbitronFontFamily
@@ -296,7 +331,7 @@ fun LapKerjaScreenContent(
             ModernFormCard(modifier = Modifier.weight(1f)) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     if (isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = GlassAccentCyan)
+                        DatabaseLoadingState(label = "Memuat laporan kerja", modifier = Modifier.align(Alignment.Center))
                     } else if (dataList.isEmpty()) {
                         Text("Tidak ada data", modifier = Modifier.align(Alignment.Center), color = GlassTextMuted, fontSize = 14.sp)
                     } else {

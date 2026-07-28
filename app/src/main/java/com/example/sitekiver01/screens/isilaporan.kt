@@ -38,10 +38,10 @@ import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
 import com.example.sitekiver01.components.*
+import com.example.sitekiver01.APIConfig
 import com.example.sitekiver01.model.Part
 import com.example.sitekiver01.repository.MesinRepository
 import com.example.sitekiver01.repository.PartRepository
-import com.google.firebase.firestore.FirebaseFirestore
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -55,7 +55,6 @@ fun IsiLaporanScreen(onBack: () -> Unit) {
 
     val mesinRepo = remember { MesinRepository() }
     val partRepo = remember { PartRepository() }
-    val db = remember { FirebaseFirestore.getInstance() }
 
     // --- Database States ---
     var isLoadingData by remember { mutableStateOf(false) }
@@ -97,7 +96,7 @@ fun IsiLaporanScreen(onBack: () -> Unit) {
     var showAddSizeDialog by remember { mutableStateOf(false) }
     var isSubmitting by remember { mutableStateOf(false) }
 
-    val scriptUrl = "https://script.google.com/macros/s/AKfycbwYHHf8ONKbs9m5CppnzUuo067CBvrqRRfLYzl5ABwOH81sVWnFD8AyPx6F6Vf3uC4/exec"
+    val scriptUrl = APIConfig.LAPORAN_URL
     val migrationScriptUrl = "https://script.google.com/macros/s/AKfycbyLAKLUbUpzWwuR3KSet3pPyEQhV9d1pWubackduAToyYPeZpQm96AFJM7gPHaL5mTyeum/exec"
     val migrationPartScriptUrl = "https://script.google.com/macros/s/AKfycbyLAKLUbUpzWwuR3KSet3pPyEQhV9d1pWuqduAToyYPeZpQm96AFJM7gPHaL5mTyeum/exec?action=getPart"
 
@@ -123,23 +122,16 @@ fun IsiLaporanScreen(onBack: () -> Unit) {
 
     val loadMesinData = {
         isLoadingMesin = true
-        db.collection("master_mesin")
-            .get()
-            .addOnSuccessListener { result ->
-                val mesinList = result.map { doc ->
-                    listOf(
-                        doc.getString("Kategori") ?: doc.getString("kategori") ?: "Mesin",
-                        doc.getString("Jenis") ?: doc.getString("jenis") ?: "",
-                        doc.getString("Nama") ?: doc.getString("nama") ?: ""
-                    )
-                }
-                listMesinFirebase = mesinList
-                isLoadingMesin = false
+        scope.launch {
+            val result = mesinRepo.getAllMesin()
+            listMesinFirebase = result.map { mesin ->
+                listOf(mesin.kategori.ifBlank { "Mesin" },mesin.jenis,mesin.nama)
             }
-            .addOnFailureListener {
-                isLoadingMesin = false
-                Toast.makeText(context, "Gagal memuat data mesin", Toast.LENGTH_SHORT).show()
+            if (result.isEmpty()) {
+                Toast.makeText(context,"Gagal memuat data mesin",Toast.LENGTH_SHORT).show()
             }
+                isLoadingMesin = false
+        }
     }
 
     val loadPartData = {
@@ -155,7 +147,7 @@ fun IsiLaporanScreen(onBack: () -> Unit) {
         loadPartData()
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
 
         // PONDASI UTAMA: Background Mesh Grid Animasi Global
         SciFiBackground()
@@ -529,6 +521,7 @@ fun IsiLaporanScreen(onBack: () -> Unit) {
                                 val success = submitToDatabase(data, scriptUrl)
                                 isSubmitting = false
                                 if (success) {
+                                    ReportDataCache.clear()
                                     Toast.makeText(context, "Data Berhasil Disimpan", Toast.LENGTH_SHORT).show()
                                     onBack()
                                 } else Toast.makeText(context, "Gagal Simpan", Toast.LENGTH_SHORT).show()
@@ -640,6 +633,7 @@ fun IsiLaporanScreen(onBack: () -> Unit) {
 
     if (showAddPartDialog) {
         var nCat by remember { mutableStateOf("") }; var nName by remember { mutableStateOf("") }; var nSize by remember { mutableStateOf("") }
+        var isSavingPart by remember { mutableStateOf(false) }
         Dialog(onDismissRequest = { showAddPartDialog = false }) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -660,10 +654,38 @@ fun IsiLaporanScreen(onBack: () -> Unit) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         TextButton(onClick = { showAddPartDialog = false }) { Text("BATAL", color = SciFiTextMuted) }
                         Spacer(Modifier.width(8.dp))
-                        Button(onClick = {
-                            sparepartKategori = nCat; sparepartSelected = nName; ukuranPart = nSize; isNewPart = true; showAddPartDialog = false
-                        }, colors = ButtonDefaults.buttonColors(containerColor = SciFiCyan), shape = RoundedCornerShape(12.dp)) {
-                            Text("SIMPAN", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Button(
+                            enabled = !isSavingPart && nCat.isNotBlank() && nName.isNotBlank() && nSize.isNotBlank(),
+                            onClick = {
+                                isSavingPart = true
+                                scope.launch {
+                                    val saved = partRepo.addPart(
+                                        Part(
+                                            kategori = nCat.trim(),
+                                            nama = nName.trim(),
+                                            ukuran = nSize.trim(),
+                                            jenisKomponen = jenisKomponen
+                                        )
+                                    )
+                                    isSavingPart = false
+                                    if (saved) {
+                                        sparepartKategori = nCat.trim()
+                                        sparepartSelected = nName.trim()
+                                        ukuranPart = nSize.trim()
+                                        isNewPart = false
+                                        listPartFirebase = partRepo.getAllPart(forceRefresh = true)
+                                        showAddPartDialog = false
+                                        Toast.makeText(context, "Part tersinkron ke Part, Stok, dan Firestore", Toast.LENGTH_LONG).show()
+                                    } else {
+                                        Toast.makeText(context, "Gagal menambah part. Pastikan akun Admin dan backend aktif.", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = SciFiCyan),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            if (isSavingPart) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.Black)
+                            else Text("SIMPAN", color = Color.Black, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -673,6 +695,7 @@ fun IsiLaporanScreen(onBack: () -> Unit) {
 
     if (showAddSizeDialog) {
         var nSize by remember { mutableStateOf("") }
+        var isSavingSize by remember { mutableStateOf(false) }
         Dialog(onDismissRequest = { showAddSizeDialog = false }) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -689,10 +712,36 @@ fun IsiLaporanScreen(onBack: () -> Unit) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         TextButton(onClick = { showAddSizeDialog = false }) { Text("BATAL", color = SciFiTextMuted) }
                         Spacer(Modifier.width(8.dp))
-                        Button(onClick = {
-                            ukuranPart = nSize; isNewPart = true; showAddSizeDialog = false
-                        }, colors = ButtonDefaults.buttonColors(containerColor = SciFiCyan), shape = RoundedCornerShape(12.dp)) {
-                            Text("SIMPAN", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Button(
+                            enabled = !isSavingSize && nSize.isNotBlank(),
+                            onClick = {
+                                isSavingSize = true
+                                scope.launch {
+                                    val saved = partRepo.addPart(
+                                        Part(
+                                            kategori = sparepartKategori,
+                                            nama = sparepartSelected,
+                                            ukuran = nSize.trim(),
+                                            jenisKomponen = jenisKomponen
+                                        )
+                                    )
+                                    isSavingSize = false
+                                    if (saved) {
+                                        ukuranPart = nSize.trim()
+                                        isNewPart = false
+                                        listPartFirebase = partRepo.getAllPart(forceRefresh = true)
+                                        showAddSizeDialog = false
+                                        Toast.makeText(context, "Ukuran part baru berhasil disinkronkan", Toast.LENGTH_LONG).show()
+                                    } else {
+                                        Toast.makeText(context, "Gagal menambah ukuran part.", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = SciFiCyan),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            if (isSavingSize) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.Black)
+                            else Text("SIMPAN", color = Color.Black, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

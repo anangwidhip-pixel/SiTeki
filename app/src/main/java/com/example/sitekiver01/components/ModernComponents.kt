@@ -2,7 +2,18 @@ package com.example.sitekiver01.components
 
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +30,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -34,22 +47,41 @@ import java.util.*
 
 @Composable
 fun ModernFormCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Surface(
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+    AnimatedVisibility(
+        visible = visible,
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        color = GlassSurface,
-        border = BorderStroke(1.dp, GlassBorder)
+        enter = fadeIn(tween(320)) + slideInVertically(tween(380)) { 22 }
     ) {
-        Column(Modifier.padding(20.dp)) { content() }
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 2.dp,
+            shadowElevation = 4.dp,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        ) {
+            Column(Modifier.padding(horizontal = 18.dp, vertical = 19.dp)) { content() }
+        }
     }
 }
 
 @Composable
 fun ModernSectionHeader(text: String, icon: ImageVector, modifier: Modifier = Modifier) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier.padding(bottom = 12.dp)) {
-        Icon(icon, null, tint = GlassAccentCyan, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(text = text, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = Color.White, letterSpacing = 0.5.sp)
+        Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = MaterialTheme.colorScheme.primaryContainer,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        ) {
+            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(7.dp).size(16.dp))
+        }
+        Spacer(Modifier.width(10.dp))
+        Column {
+            Text(text = text, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface, letterSpacing = 0.25.sp)
+            Box(Modifier.padding(top = 5.dp).width(28.dp).height(2.dp).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(50)))
+        }
     }
 }
 
@@ -63,9 +95,9 @@ fun ModernClickableField(
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        border = BorderStroke(1.dp, GlassBorder),
-        shape = RoundedCornerShape(16.dp),
-        color = color
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        shape = RoundedCornerShape(7.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Row(
             Modifier.padding(16.dp),
@@ -74,31 +106,33 @@ fun ModernClickableField(
         ) {
             Text(
                 text = if (value.isEmpty()) placeholder else value,
-                color = if (value.isEmpty()) GlassTextMuted else Color.White,
+                color = if (value.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                 fontSize = 14.sp,
                 modifier = Modifier.weight(1f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Icon(Icons.Default.ArrowDropDown, null, tint = GlassTextMuted)
+            Icon(Icons.Default.ArrowDropDown, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
 @Composable
 fun FormLabel(text: String) {
-    Text(text = text, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = GlassTextMuted, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+    Text(text = text, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 0.7.sp, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
 }
 
 @Composable
 fun ChoiceChip(text: String, selected: Boolean, onClick: () -> Unit) {
+    val background by animateColorAsState(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant, tween(220), label = "chipBackground")
+    val scale by animateFloatAsState(if (selected) 1.025f else 1f, tween(180), label = "chipScale")
     Surface(
-        modifier = Modifier.padding(end = 8.dp, bottom = 8.dp).clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        color = if (selected) GlassAccentCyan else Color.White.copy(alpha = 0.05f),
-        border = BorderStroke(1.dp, if(selected) GlassAccentCyan else GlassBorder)
+        modifier = Modifier.padding(end = 8.dp, bottom = 8.dp).scale(scale).clickable { onClick() },
+        shape = RoundedCornerShape(10.dp),
+        color = background,
+        border = BorderStroke(1.dp, if(selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)
     ) {
-        Text(text = text, modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp), color = if (selected) Color.Black else Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Text(text = text, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp), color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -111,14 +145,14 @@ fun ModernDatePickerField(value: String, placeholder: String = "", onDateSelecte
             DatePickerDialog(context, { _, y, m, d -> onDateSelected(String.format(Locale.getDefault(), "%02d/%02d/%04d", d, m + 1, y)) }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
         },
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        border = BorderStroke(1.dp, GlassBorder),
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White.copy(alpha = 0.05f)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        shape = RoundedCornerShape(7.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.CalendarMonth, null, tint = GlassAccentCyan, modifier = Modifier.size(18.dp))
+            Icon(Icons.Default.CalendarMonth, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(12.dp))
-            Text(text = if(value.isEmpty()) placeholder else value, fontSize = 14.sp, color = if(value.isEmpty()) GlassTextMuted else Color.White)
+            Text(text = if(value.isEmpty()) placeholder else value, fontSize = 14.sp, color = if(value.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -132,14 +166,14 @@ fun ModernTimePickerField(value: String, placeholder: String = "", onTimeSelecte
             TimePickerDialog(context, { _, h, m -> onTimeSelected(String.format(Locale.getDefault(), "%02d:%02d", h, m)) }, cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), true).show()
         },
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        border = BorderStroke(1.dp, GlassBorder),
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White.copy(alpha = 0.05f)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        shape = RoundedCornerShape(7.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.AccessTime, null, tint = GlassAccentCyan, modifier = Modifier.size(18.dp))
+            Icon(Icons.Default.AccessTime, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(12.dp))
-            Text(text = if(value.isEmpty()) placeholder else value, fontSize = 14.sp, color = if(value.isEmpty()) GlassTextMuted else Color.White)
+            Text(text = if(value.isEmpty()) placeholder else value, fontSize = 14.sp, color = if(value.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -162,21 +196,21 @@ fun ModernDropdownField(
             value = selected,
             onValueChange = {},
             readOnly = true,
-            placeholder = { Text(label, color = SciFiTextMuted, fontSize = 14.sp) },
+            placeholder = { Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
                 .menuAnchor(),
-            shape = RoundedCornerShape(14.dp),
-            textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 14.sp),
+            shape = RoundedCornerShape(7.dp),
+            textStyle = androidx.compose.ui.text.TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp),
             // ==================== PENYELARASAN WARNA SIBER ====================
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Color.White.copy(alpha = 0.05f),   // Transparan tipis saat fokus
-                unfocusedContainerColor = Color.White.copy(alpha = 0.03f), // Transparan tipis saat diam
-                focusedBorderColor = SciFiCyan,                            // Garis neon menyala saat aktif
-                unfocusedBorderColor = Color.White.copy(alpha = 0.12f),    // Garis kaca samar saat diam
-                focusedTrailingIconColor = SciFiCyan,
-                unfocusedTrailingIconColor = SciFiTextMuted
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedTrailingIconColor = MaterialTheme.colorScheme.primary,
+                unfocusedTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
         )
 
@@ -184,16 +218,16 @@ fun ModernDropdownField(
         ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier.background(Color(0xFF0F172A)) // Menggunakan SciFiBrandCard agar teks menu terbaca jelas
+            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
         ) {
             options.forEach { selectionOption ->
                 DropdownMenuItem(
-                    text = { Text(text = selectionOption, color = Color.White, fontSize = 14.sp) },
+                    text = { Text(text = selectionOption, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp) },
                     onClick = {
                         onSelected(selectionOption)
                         expanded = false
                     },
-                    modifier = Modifier.background(Color(0xFF0F172A))
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                 )
             }
         }
@@ -205,20 +239,20 @@ fun ModernSearchField(value: String, placeholder: String, onClick: () -> Unit, i
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().height(48.dp),
-        border = BorderStroke(1.dp, GlassBorder),
-        shape = RoundedCornerShape(12.dp),
-        color = Color.White.copy(alpha = 0.05f)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        shape = RoundedCornerShape(7.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Row(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = if (value.isEmpty()) placeholder else value,
-                color = if (value.isEmpty()) GlassTextMuted else Color.White,
+                color = if (value.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                 fontSize = 13.sp,
                 modifier = Modifier.weight(1f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            if (isDropdown) Icon(Icons.Default.ArrowDropDown, null, tint = GlassTextMuted, modifier = Modifier.size(24.dp))
+            if (isDropdown) Icon(Icons.Default.ArrowDropDown, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
         }
     }
 }
@@ -234,20 +268,20 @@ fun ModernTextField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = { Text(placeholder, color = SciFiTextMuted, fontSize = 14.sp) },
-        leadingIcon = icon?.let { { Icon(it, contentDescription = null, tint = SciFiTextMuted) } },
+        placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp) },
+        leadingIcon = icon?.let { { Icon(it, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) } },
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(7.dp),
         minLines = minLines,
-        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 14.sp),
+        textStyle = androidx.compose.ui.text.TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp),
         // ==================== PENYELARASAN WARNA SIBER ====================
         colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = Color.White.copy(alpha = 0.05f),
-            unfocusedContainerColor = Color.White.copy(alpha = 0.03f),
-            focusedBorderColor = SciFiCyan,
-            unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
-            focusedLabelColor = SciFiCyan,
-            unfocusedLabelColor = SciFiTextMuted
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
     )
 }
@@ -259,27 +293,28 @@ fun ModernButton(
     modifier: Modifier = Modifier,
     isLoading: Boolean = false,
     icon: ImageVector? = null,
-    containerColor: Color = GlassAccentCyan
+    containerColor: Color? = null
 ) {
+    val buttonColor = containerColor ?: MaterialTheme.colorScheme.primary
     Button(
         onClick = onClick,
         modifier = modifier.height(54.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
-            disabledContainerColor = containerColor.copy(alpha = 0.5f)
+            containerColor = buttonColor,
+            disabledContainerColor = buttonColor.copy(alpha = 0.5f)
         ),
         enabled = !isLoading
     ) {
         if (isLoading) {
-            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black, strokeWidth = 2.dp)
+            CircularProgressIndicator(modifier = Modifier.size(22.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.4.dp)
         } else {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (icon != null) {
-                    Icon(icon, null, tint = Color.Black, modifier = Modifier.size(20.dp))
+                    Icon(icon, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
                 }
-                Text(text = text, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(text = text, color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
             }
         }
     }
@@ -293,10 +328,60 @@ fun GlassCard(
 ) {
     Surface(
         modifier = modifier,
-        color = Color.White.copy(alpha = 0.05f),
-        shape = RoundedCornerShape(24.dp),
-        border = BorderStroke(1.dp, borderColor)
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         content()
+    }
+}
+
+@Composable
+fun DatabaseLoadingState(
+    label: String = "Menyinkronkan database",
+    modifier: Modifier = Modifier
+) {
+    val transition = rememberInfiniteTransition(label = "databaseLoader")
+    val sweep by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(animation = tween(1400), repeatMode = RepeatMode.Restart),
+        label = "loaderSweep"
+    )
+    val pulse by transition.animateFloat(
+        initialValue = 0.62f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(animation = tween(720), repeatMode = RepeatMode.Reverse),
+        label = "loaderPulse"
+    )
+    val scheme = MaterialTheme.colorScheme
+
+    Column(
+        modifier = modifier.padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Canvas(Modifier.size(54.dp)) {
+            drawCircle(scheme.outline, radius = size.minDimension / 2f)
+            drawArc(
+                color = scheme.primary.copy(alpha = pulse),
+                startAngle = sweep,
+                sweepAngle = 96f,
+                useCenter = false,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 4.dp.toPx())
+            )
+            drawCircle(scheme.primary.copy(alpha = 0.14f), radius = 13.dp.toPx())
+            drawCircle(scheme.primary, radius = 4.dp.toPx())
+        }
+        Spacer(Modifier.height(14.dp))
+        Text(label, color = scheme.onSurface, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(5.dp))
+        Text("Mengambil data terbaru dan memvalidasi koneksi", color = scheme.onSurfaceVariant, fontSize = 10.sp)
+        Spacer(Modifier.height(16.dp))
+        LinearProgressIndicator(
+            modifier = Modifier.fillMaxWidth(0.58f).height(4.dp),
+            color = scheme.primary,
+            trackColor = scheme.outlineVariant
+        )
     }
 }

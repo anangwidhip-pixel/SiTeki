@@ -37,9 +37,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,6 +65,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sitekiver01.OrbitronFontFamily
+import com.example.sitekiver01.APIConfig
 import com.example.sitekiver01.UserSession
 import com.example.sitekiver01.components.GlassCard
 import com.example.sitekiver01.components.ModernSectionHeader
@@ -78,7 +81,6 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.URLEncoder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,53 +130,63 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(GlassBase)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         SciFiBackground()
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 28.dp)
                 .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = "SITEKI SYSTEM",
-                fontSize = 26.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = SciFiCyan,
-                fontFamily = OrbitronFontFamily,
-                letterSpacing = 2.sp
-            )
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.primary
+            ) {
+                Text(
+                    "ST",
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 13.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(34.dp))
 
             Text(
-                text = "PT. PABRIK BESI BETON RAJA BESI",
-                fontSize = 10.sp,
-                color = Color.White.copy(alpha = 0.6f),
-                fontFamily = OrbitronFontFamily
+                text = "Masuk ke\nruang kerja.",
+                fontSize = 40.sp,
+                lineHeight = 43.sp,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.onBackground,
+                letterSpacing = (-1.2).sp
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            ModernSectionHeader(
-                "OTENTIKASI TERMINAL ACCESS",
-                Icons.Default.VerifiedUser
+            Text(
+                text = "Gunakan akun SiTeki untuk melanjutkan pekerjaan.",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            Spacer(modifier = Modifier.height(30.dp))
 
             GlassCard {
                 Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(18.dp)
                 ) {
                     Column {
                         Text(
-                            text = "ID USERNAME INTERFACES",
+                            text = "Username",
                             fontSize = 10.sp,
-                            color = SciFiCyan,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = OrbitronFontFamily
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Bold
                         )
 
                         OutlinedTextField(
@@ -187,35 +199,34 @@ fun LoginScreen(
                                 Icon(
                                     imageVector = Icons.Default.Person,
                                     contentDescription = null,
-                                    tint = SciFiCyan
+                                    tint = MaterialTheme.colorScheme.primary
                                 )
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 4.dp)
                                 .height(50.dp),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(8.dp),
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = SciFiCyan,
-                                unfocusedBorderColor = SciFiBorderLight,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                                 disabledTextColor =
-                                    Color.White.copy(alpha = 0.65f),
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
                                 disabledBorderColor =
-                                    SciFiBorderLight.copy(alpha = 0.45f)
+                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
                             )
                         )
                     }
 
                     Column {
                         Text(
-                            text = "SECURE KEYCODE PASSWORD",
+                            text = "Password",
                             fontSize = 10.sp,
-                            color = SciFiCyan,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = OrbitronFontFamily
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Bold
                         )
 
                         OutlinedTextField(
@@ -228,7 +239,7 @@ fun LoginScreen(
                                 Icon(
                                     imageVector = Icons.Default.Lock,
                                     contentDescription = null,
-                                    tint = SciFiCyan
+                                    tint = MaterialTheme.colorScheme.primary
                                 )
                             },
                             trailingIcon = {
@@ -251,7 +262,7 @@ fun LoginScreen(
                                             } else {
                                                 "Tampilkan password"
                                             },
-                                        tint = SciFiTextMuted
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             },
@@ -268,17 +279,17 @@ fun LoginScreen(
                                 .fillMaxWidth()
                                 .padding(top = 4.dp)
                                 .height(50.dp),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(8.dp),
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = SciFiCyan,
-                                unfocusedBorderColor = SciFiBorderLight,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                                 disabledTextColor =
-                                    Color.White.copy(alpha = 0.65f),
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
                                 disabledBorderColor =
-                                    SciFiBorderLight.copy(alpha = 0.45f)
+                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
                             )
                         )
                     }
@@ -331,7 +342,8 @@ fun LoginScreen(
                                             userRole = profile.optString(
                                                 "role",
                                                 "Operator"
-                                            )
+                                            ),
+                                            sessionToken = loginResult.optString("token", "")
                                         )
 
                                         Toast.makeText(
@@ -380,16 +392,16 @@ fun LoginScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = SciFiCyan,
+                    containerColor = MaterialTheme.colorScheme.primary,
                     disabledContainerColor =
-                        SciFiCyan.copy(alpha = 0.65f)
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.65f)
                 )
             ) {
                 if (isAuthenticating) {
                     CircularProgressIndicator(
-                        color = Color.Black,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         strokeWidth = 2.dp,
                         modifier = Modifier.size(21.dp)
                     )
@@ -397,18 +409,16 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.size(10.dp))
 
                     Text(
-                        text = "CONNECTING...",
-                        color = Color.Black,
+                        text = "Memverifikasi...",
+                        color = MaterialTheme.colorScheme.onPrimary,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = OrbitronFontFamily,
                         fontSize = 11.sp
                     )
                 } else {
                     Text(
-                        text = "INITIALIZE CONNECTION",
-                        color = Color.Black,
+                        text = "Masuk ke SiTeki",
+                        color = MaterialTheme.colorScheme.onPrimary,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = OrbitronFontFamily,
                         fontSize = 13.sp
                     )
                 }
@@ -464,9 +474,9 @@ private fun LoginLoadingOverlay(
     ) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(10.dp),
             colors = CardDefaults.cardColors(
-                containerColor = Color(0xFF07171B)
+                containerColor = MaterialTheme.colorScheme.surface
             ),
             elevation = CardDefaults.cardElevation(
                 defaultElevation = 18.dp
@@ -490,8 +500,8 @@ private fun LoginLoadingOverlay(
                         .background(
                             Brush.radialGradient(
                                 colors = listOf(
-                                    SciFiCyan.copy(alpha = 0.28f),
-                                    Color(0xFF082027)
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.28f),
+                                    MaterialTheme.colorScheme.surfaceVariant
                                 )
                             )
                         ),
@@ -499,13 +509,13 @@ private fun LoginLoadingOverlay(
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(58.dp),
-                        color = SciFiCyan,
+                        color = MaterialTheme.colorScheme.primary,
                         strokeWidth = 3.dp
                     )
 
                     Text(
                         text = "DB",
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.ExtraBold,
                         fontFamily = OrbitronFontFamily
@@ -515,8 +525,8 @@ private fun LoginLoadingOverlay(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
-                    text = "AUTHENTICATION PROCESS",
-                    color = SciFiCyan,
+                    text = "Memverifikasi akun",
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = OrbitronFontFamily,
@@ -527,7 +537,7 @@ private fun LoginLoadingOverlay(
 
                 Text(
                     text = message,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center
@@ -540,8 +550,8 @@ private fun LoginLoadingOverlay(
                         .fillMaxWidth()
                         .height(7.dp)
                         .clip(RoundedCornerShape(50)),
-                    color = SciFiCyan,
-                    trackColor = Color.White.copy(alpha = 0.09f)
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -555,15 +565,15 @@ private fun LoginLoadingOverlay(
                             .size(8.dp)
                             .clip(CircleShape)
                             .background(
-                                SciFiCyan.copy(alpha = pulseAlpha)
+                                MaterialTheme.colorScheme.primary.copy(alpha = pulseAlpha)
                             )
                     )
 
                     Spacer(modifier = Modifier.size(9.dp))
 
                     Text(
-                        text = "SERVER CONNECTION ACTIVE",
-                        color = Color.White.copy(alpha = 0.55f),
+                        text = "KONEKSI SERVER AKTIF",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 8.sp,
                         fontFamily = OrbitronFontFamily,
                         letterSpacing = 0.7.sp
@@ -574,7 +584,7 @@ private fun LoginLoadingOverlay(
 
                 Text(
                     text = "Mohon tunggu dan jangan menutup aplikasi",
-                    color = Color.White.copy(alpha = 0.38f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     fontSize = 10.sp,
                     textAlign = TextAlign.Center
                 )
@@ -594,31 +604,24 @@ private suspend fun melakukanProsesLogin(
         var connection: HttpURLConnection? = null
 
         try {
-            val urlUtama =
-                "https://script.google.com/macros/s/" +
-                        "AKfycbzzdAkBlB9PVR3aAtPmkuZ5OCO9Cz31S-" +
-                        "zlGiQfPcPsUkhTfjsHQt6gasEO4qNvSFU/exec"
-
-            val urlString =
-                "$urlUtama?action=login" +
-                        "&username=${
-                            URLEncoder.encode(user, "UTF-8")
-                        }" +
-                        "&password=${
-                            URLEncoder.encode(pass, "UTF-8")
-                        }"
-
-            connection =
-                URL(urlString).openConnection() as HttpURLConnection
-
-            connection.requestMethod = "GET"
+            connection = URL(APIConfig.USER_MANAGEMENT_URL).openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.doOutput = true
             connection.connectTimeout = 20_000
             connection.readTimeout = 30_000
             connection.instanceFollowRedirects = true
+            connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
             connection.setRequestProperty(
                 "Accept",
                 "application/json"
             )
+            val payload = JSONObject()
+                .put("action", "login")
+                .put("username", user)
+                .put("password", pass)
+            connection.outputStream.use {
+                it.write(payload.toString().toByteArray(Charsets.UTF_8))
+            }
 
             val responseCode = connection.responseCode
 

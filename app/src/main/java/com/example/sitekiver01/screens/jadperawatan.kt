@@ -120,7 +120,7 @@ fun JadPerawatanScreen(
         (item?.jenis ?: "UMUM") to name
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
 
         // PONDASI UTAMA: Background Mesh Grid Animasi Global
         SciFiBackground()
@@ -184,16 +184,14 @@ fun JadPerawatanContent(
                 ) {
                     IconButton(
                         onClick = onBack,
-                        modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)
-                    ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = Color.White) }
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
+                    ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = MaterialTheme.colorScheme.onSurface) }
                     Spacer(Modifier.width(16.dp))
                     Text(
-                        "JADWAL PERAWATAN",
-                        color = Color.White,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 18.sp,
-                        fontFamily = OrbitronFontFamily,
-                        letterSpacing = 1.sp
+                        "Jadwal Perawatan",
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 24.sp
                     )
                 }
             }
@@ -204,14 +202,14 @@ fun JadPerawatanContent(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Spacer(Modifier.height(12.dp))
-            Text("PENCARIAN DATA METRIC", color = SciFiCyan, fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = OrbitronFontFamily)
+            Text("Pilih periode", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = 11.sp)
 
             // PANEL FILTER BULAN DAN TAHUN (GLASSMORPHIC)
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                color = SciFiGlass,
-                border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent)))
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) {
                 Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box(modifier = Modifier.weight(1f)) {
@@ -220,30 +218,32 @@ fun JadPerawatanContent(
                                 .height(42.dp)
                                 .fillMaxWidth()
                                 .clickable { onMonthClick() },
-                            border = BorderStroke(1.dp, SciFiBorderLight),
-                            shape = RoundedCornerShape(21.dp),
-                            color = Color.White.copy(alpha = 0.03f)
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                            shape = RoundedCornerShape(7.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Row(modifier = Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = months[selectedMonth],
                                     modifier = Modifier.weight(1f),
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     fontSize = 12.sp,
                                     maxLines = 1
                                 )
-                                Icon(Icons.Default.ArrowDropDown, null, tint = SciFiTextMuted, modifier = Modifier.size(20.dp))
+                                Icon(Icons.Default.ArrowDropDown, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
                             }
                         }
 
                         DropdownMenu(
                             expanded = expandedMonth,
                             onDismissRequest = { onMonthDismiss() },
-                            modifier = Modifier.background(Color(0xFF0F172A)).border(1.dp, SciFiBorderLight)
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.surface)
+                                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
                         ) {
                             months.forEachIndexed { index, name ->
                                 DropdownMenuItem(
-                                    text = { Text(name, fontSize = 12.sp, color = Color.White) },
+                                    text = { Text(name, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface) },
                                     onClick = { onMonthSelect(index) }
                                 )
                             }
@@ -255,12 +255,12 @@ fun JadPerawatanContent(
                             modifier = Modifier
                                 .height(42.dp)
                                 .fillMaxWidth(),
-                            border = BorderStroke(1.dp, SciFiBorderLight),
-                            shape = RoundedCornerShape(21.dp),
-                            color = Color.White.copy(alpha = 0.03f)
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                            shape = RoundedCornerShape(7.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Text(text = selectedYear.toString(), color = Color.White, fontSize = 12.sp, fontFamily = OrbitronFontFamily)
+                                Text(text = selectedYear.toString(), color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -270,23 +270,28 @@ fun JadPerawatanContent(
             Spacer(Modifier.height(4.dp))
 
             // LEGENDA INDIKATOR PLAN & ACTUAL
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                LegendItem(Color(0xFF10B981), "Plan (M)") // SciFiStatusM Green
-                LegendItem(Color(0xFF2563EB), "Plan (B)") // SciFiBlue
-                Text("✓ Actual", color = Color(0xFF10B981), fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = OrbitronFontFamily)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    LegendItem(SciFiStatusM, "M  Mingguan")
+                    LegendItem(SciFiStatusB, "B  Bulanan")
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    LegendItem(SciFiActual, "✓  Aktual mingguan", isTextMark = true)
+                    LegendItem(SciFiStatusB, "✓✓  Aktual bulanan", isTextMark = true)
+                }
             }
 
             Spacer(Modifier.height(4.dp))
 
             Row(modifier = Modifier.fillMaxWidth()) {
                 Surface(
-                    color = SciFiCyan.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
-                    border = BorderStroke(1.dp, SciFiCyan.copy(alpha = 0.3f))
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                 ) {
                     Text(
                         "DATA JADWAL PERAWATAN",
-                        color = SciFiCyan,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp,
                         fontFamily = OrbitronFontFamily,
@@ -298,12 +303,12 @@ fun JadPerawatanContent(
             // STRUKTUR UTAMA TABEL JADWAL (GLASSMORPHIC BOX)
             Surface(
                 modifier = modifier.weight(1f).fillMaxWidth(),
-                color = SciFiGlass,
-                border = BorderStroke(1.dp, Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent))),
-                shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp, topEnd = 12.dp)
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                shape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp, topEnd = 8.dp)
             ) {
                 if (isLoading) {
-                    Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator(color = SciFiCyan) }
+                    DatabaseLoadingState(label = "Memuat jadwal perawatan", modifier = Modifier.fillMaxSize())
                 } else if (errorMessage != null) {
                     Box(Modifier.fillMaxSize().padding(16.dp), Alignment.Center) {
                         Text(errorMessage, color = Color(0xFFC23B22), textAlign = TextAlign.Center, fontSize = 12.sp)
@@ -318,10 +323,15 @@ fun JadPerawatanContent(
 }
 
 @Composable
-fun LegendItem(color: Color, label: String) {
+fun LegendItem(color: Color, label: String, isTextMark: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Box(modifier = Modifier.size(12.dp).background(color, RoundedCornerShape(2.dp)))
-        Text(label, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+        Box(
+            modifier = Modifier
+                .width(if (isTextMark) 18.dp else 12.dp)
+                .height(12.dp)
+                .background(color.copy(alpha = if (isTextMark) 0.16f else 1f), RoundedCornerShape(3.dp))
+        )
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -341,14 +351,14 @@ fun MaintenanceStickyTable(
     val todayDate = today.get(Calendar.DAY_OF_MONTH)
 
     val scrollState = rememberScrollState()
-    val nameColumnWidth = 130.dp
-    val dayCellWidth = 44.dp
-    val headerHeight = 56.dp
-    val dataRowHeight = 40.dp
+    val nameColumnWidth = 142.dp
+    val dayCellWidth = 48.dp
+    val headerHeight = 58.dp
+    val dataRowHeight = 44.dp
 
     Column(modifier = Modifier.fillMaxSize()) {
         // HEADER ROW 1 (Dates / Hari)
-        Row(modifier = Modifier.fillMaxWidth().background(SciFiCyan.copy(alpha = 0.08f))) {
+        Row(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant)) {
             Box(
                 modifier = Modifier
                     .size(nameColumnWidth, headerHeight)
@@ -356,7 +366,7 @@ fun MaintenanceStickyTable(
                     .padding(horizontal = 8.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
-                Text("Mesin / Tanggal", color = SciFiCyan, fontWeight = FontWeight.Bold, fontSize = 11.sp, fontFamily = OrbitronFontFamily)
+                Text("MESIN / TANGGAL", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 10.sp)
             }
 
             Row(modifier = Modifier.horizontalScroll(scrollState)) {
@@ -367,12 +377,12 @@ fun MaintenanceStickyTable(
                     val isToday = isCurrentMonth && i == todayDate
 
                     val bgColor = when {
-                        isToday -> SciFiCyan.copy(alpha = 0.35f)
-                        isSun || isHoliday -> Color(0xFFC23B22).copy(alpha = 0.4f) // SciFiHoliday Red
-                        isSat -> Color(0xFFD97706).copy(alpha = 0.4f) // SciFiSaturday Amber
+                        isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+                        isSun || isHoliday -> SciFiHoliday.copy(alpha = 0.22f)
+                        isSat -> SciFiSaturday.copy(alpha = 0.18f)
                         else -> Color.Transparent
                     }
-                    val textColor = Color.White
+                    val textColor = MaterialTheme.colorScheme.onSurface
 
                     Box(
                         modifier = Modifier
@@ -383,8 +393,8 @@ fun MaintenanceStickyTable(
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(getDayNameShort(i, month, year), color = if (isToday) SciFiCyan else textColor.copy(alpha = 0.6f), fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                            Text(i.toString(), color = if (isToday) SciFiCyan else textColor, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = OrbitronFontFamily)
+                            Text(getDayNameShort(i, month, year), color = if (isToday) MaterialTheme.colorScheme.primary else textColor.copy(alpha = 0.55f), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                            Text(i.toString(), color = if (isToday) MaterialTheme.colorScheme.primary else textColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -392,7 +402,7 @@ fun MaintenanceStickyTable(
         }
 
         // HEADER ROW 2 (P / A Plan & Actual Channels)
-        Row(modifier = Modifier.fillMaxWidth().background(SciFiCyan.copy(alpha = 0.03f))) {
+        Row(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant)) {
             Box(
                 modifier = Modifier
                     .size(nameColumnWidth, 24.dp)
@@ -404,10 +414,10 @@ fun MaintenanceStickyTable(
                 for (i in 1..daysInMonth) {
                     Row(modifier = Modifier.width(dayCellWidth)) {
                         Box(modifier = Modifier.weight(1f).height(24.dp).border(0.5.dp, SciFiBorderLight.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
-                            Text("P", color = SciFiCyan.copy(alpha = 0.8f), fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = OrbitronFontFamily)
+                            Text("P", color = MaterialTheme.colorScheme.secondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
                         Box(modifier = Modifier.weight(1f).height(24.dp).border(0.5.dp, SciFiBorderLight.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
-                            Text("A", color = Color(0xFF10B981), fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = OrbitronFontFamily)
+                            Text("A", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -417,7 +427,7 @@ fun MaintenanceStickyTable(
         // BODY ROWS (Daftar Mesin Dinamis)
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             itemsIndexed(machines) { index, machine ->
-                val rowBgColor = if (index % 2 != 0) Color.White.copy(alpha = 0.01f) else Color.Transparent
+                val rowBgColor = if (index % 2 != 0) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f) else Color.Transparent
 
                 Row(modifier = Modifier
                     .fillMaxWidth()
@@ -431,7 +441,7 @@ fun MaintenanceStickyTable(
                             .padding(horizontal = 8.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {
-                        Text(machine.second, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(machine.second, color = MaterialTheme.colorScheme.onSurface, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
 
                     Row(modifier = Modifier.horizontalScroll(scrollState)) {
@@ -446,17 +456,17 @@ fun MaintenanceStickyTable(
                             }
 
                             val pBgColor = when (status) {
-                                "M" -> Color(0xFF10B981) // SciFiStatusM
-                                "B" -> Color(0xFF2563EB) // SciFiBlue
+                                "M" -> SciFiStatusM
+                                "B" -> SciFiStatusB
                                 else -> Color.Transparent
                             }
 
                             val aBgColor = when (actualMark) {
-                                "✓✓" -> Color(0xFF2563EB).copy(alpha = 0.15f)
-                                "✓" -> Color(0xFF10B981).copy(alpha = 0.15f)
+                                "✓✓" -> SciFiStatusB.copy(alpha = 0.16f)
+                                "✓" -> SciFiActual.copy(alpha = 0.16f)
                                 else -> Color.Transparent
                             }
-                            val aTextColor = if (actualMark == "✓✓") Color(0xFF2563EB) else Color(0xFF10B981)
+                            val aTextColor = if (actualMark == "✓✓") SciFiStatusB else SciFiActual
 
                             Row(modifier = Modifier
                                 .width(dayCellWidth)
@@ -472,7 +482,7 @@ fun MaintenanceStickyTable(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (status.isNotEmpty()) {
-                                        Text(status, color = Color.Black, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                                        Text(status, color = ForgeBase, fontWeight = FontWeight.Black, fontSize = 11.sp)
                                     }
                                 }
                                 Box(

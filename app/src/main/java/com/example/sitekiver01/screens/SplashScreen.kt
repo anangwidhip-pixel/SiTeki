@@ -1,489 +1,199 @@
 package com.example.sitekiver01.screens
 
-import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.sitekiver01.OrbitronFontFamily
 import com.example.sitekiver01.components.SciFiBackground
-import com.example.sitekiver01.ui.theme.GlassBase
-import com.example.sitekiver01.ui.theme.SciFiCyan
-import com.example.sitekiver01.ui.theme.SciFiTextMuted
 import kotlinx.coroutines.delay
 
-/**
- * Splash/loading modern SiTeki.
- *
- * Loading ini menampilkan simulasi proses pembacaan database.
- * Durasi dapat diubah melalui nilai totalDuration.
- */
 @Composable
-fun SplashScreen(
-    onTimeout: () -> Unit
-) {
-    val loadingSteps = remember {
-        listOf(
-            "Menghubungkan ke server",
-            "Memverifikasi sesi pengguna",
-            "Membaca database aplikasi",
-            "Menyinkronkan data terbaru",
-            "Menyiapkan dashboard"
-        )
-    }
-
+fun SplashScreen(onTimeout: () -> Unit) {
+    val steps = listOf(
+        "Membuka ruang kerja",
+        "Menghubungkan layanan data",
+        "Menyusun modul operasional",
+        "Siap digunakan"
+    )
     var progress by remember { mutableFloatStateOf(0f) }
-    var currentStep by remember { mutableIntStateOf(0) }
+    var reveal by remember { mutableStateOf(false) }
+    val animatedProgress by animateFloatAsState(progress, tween(260), label = "startupProgress")
 
     LaunchedEffect(Unit) {
-        // Total loading sekitar 3,6 detik.
-        val totalDuration = 3_600L
-        val interval = 36L
-        val totalTick = (totalDuration / interval).toInt()
-
-        for (tick in 0..totalTick) {
-            progress = tick.toFloat() / totalTick.toFloat()
-
-            currentStep = when {
-                progress < 0.18f -> 0
-                progress < 0.38f -> 1
-                progress < 0.63f -> 2
-                progress < 0.84f -> 3
-                else -> 4
-            }
-
-            delay(interval)
+        reveal = true
+        repeat(100) { tick ->
+            progress = (tick + 1) / 100f
+            delay(28)
         }
-
-        progress = 1f
-        currentStep = loadingSteps.lastIndex
-
-        delay(300)
+        delay(260)
         onTimeout()
     }
 
     Box(
-        modifier = Modifier
+        Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        GlassBase,
-                        Color(0xFF071419),
-                        Color(0xFF020708)
-                    )
-                )
-            )
+            .background(MaterialTheme.colorScheme.background)
     ) {
         SciFiBackground()
 
         Column(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth()
-                .padding(horizontal = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 28.dp, vertical = 34.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            DatabaseLoadingIcon()
-
-            Spacer(modifier = Modifier.height(26.dp))
-
-            Text(
-                text = "SITEKI",
-                fontSize = 40.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = SciFiCyan,
-                fontFamily = OrbitronFontFamily,
-                letterSpacing = 5.sp
-            )
-
-            Spacer(modifier = Modifier.height(5.dp))
-
-            Text(
-                text = "SISTEM TEKNISI TERINTEGRASI",
-                fontSize = 9.sp,
-                color = Color.White.copy(alpha = 0.58f),
-                fontFamily = OrbitronFontFamily,
-                letterSpacing = 1.3.sp,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(34.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF08171B).copy(alpha = 0.88f)
-                ),
-                border = BorderStroke(
-                    width = 1.dp,
-                    color = SciFiCyan.copy(alpha = 0.28f)
-                ),
-                elevation = CardDefaults.cardElevation(
-                    defaultElevation = 10.dp
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(
-                        horizontal = 20.dp,
-                        vertical = 20.dp
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = "DATABASE INITIALIZATION",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = SciFiCyan,
-                                fontFamily = OrbitronFontFamily,
-                                letterSpacing = 1.sp
-                            )
-
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            Text(
-                                text = "Secure data synchronization",
-                                fontSize = 11.sp,
-                                color = SciFiTextMuted
-                            )
-                        }
-
-                        Text(
-                            text = "${(progress * 100).toInt()}%",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            fontFamily = OrbitronFontFamily
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(17.dp))
-
-                    LinearProgressIndicator(
-                        progress = progress,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(7.dp)
-                            .clip(RoundedCornerShape(50)),
-                        color = SciFiCyan,
-                        trackColor = Color.White.copy(alpha = 0.09f),
-                        strokeCap = StrokeCap.Round
-                    )
-
-                    Spacer(modifier = Modifier.height(19.dp))
-
-                    loadingSteps.forEachIndexed { index, label ->
-                        LoadingStepRow(
-                            label = label,
-                            stepIndex = index,
-                            currentStep = currentStep,
-                            isFinished = progress >= 1f
-                        )
-
-                        if (index != loadingSteps.lastIndex) {
-                            Spacer(modifier = Modifier.height(11.dp))
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
             Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                PulsingDot()
-
-                Spacer(modifier = Modifier.width(9.dp))
-
                 Text(
-                    text = if (progress >= 1f) {
-                        "SISTEM SIAP DIGUNAKAN"
-                    } else {
-                        loadingSteps[currentStep].uppercase() + "..."
-                    },
+                    "PT. PABRIK BESI BETON RAJA BESI",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 9.sp,
-                    color = Color.White.copy(alpha = 0.62f),
-                    fontFamily = OrbitronFontFamily,
-                    letterSpacing = 0.8.sp
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.2.sp
+                )
+                Text(
+                    "01 / START",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Black
                 )
             }
-        }
 
-        Text(
-            text = "Mohon tunggu, sistem sedang menyiapkan data",
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 30.dp),
-            fontSize = 10.sp,
-            color = Color.White.copy(alpha = 0.34f),
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-@Composable
-private fun DatabaseLoadingIcon() {
-    val infiniteTransition =
-        rememberInfiniteTransition(label = "databaseLoading")
-
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2_200),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "databaseRotation"
-    )
-
-    val pulse by infiniteTransition.animateFloat(
-        initialValue = 0.94f,
-        targetValue = 1.06f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 900),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "databasePulse"
-    )
-
-    Box(
-        modifier = Modifier.size(112.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    rotationZ = rotation
-                }
-        ) {
-            val strokeWidth = 3.dp.toPx()
-
-            drawArc(
-                color = SciFiCyan.copy(alpha = 0.95f),
-                startAngle = 4f,
-                sweepAngle = 76f,
-                useCenter = false,
-                style = Stroke(
-                    width = strokeWidth,
-                    cap = StrokeCap.Round
-                )
-            )
-
-            drawArc(
-                color = SciFiCyan.copy(alpha = 0.28f),
-                startAngle = 112f,
-                sweepAngle = 45f,
-                useCenter = false,
-                style = Stroke(
-                    width = strokeWidth,
-                    cap = StrokeCap.Round
-                )
-            )
-
-            drawArc(
-                color = SciFiCyan.copy(alpha = 0.62f),
-                startAngle = 197f,
-                sweepAngle = 105f,
-                useCenter = false,
-                style = Stroke(
-                    width = strokeWidth,
-                    cap = StrokeCap.Round
-                )
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .size(76.dp)
-                .graphicsLayer {
-                    scaleX = pulse
-                    scaleY = pulse
-                }
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            SciFiCyan.copy(alpha = 0.22f),
-                            Color(0xFF071A20)
-                        )
-                    )
-                )
-                .border(
-                    width = 1.dp,
-                    color = SciFiCyan.copy(alpha = 0.55f),
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+            AnimatedVisibility(
+                visible = reveal,
+                enter = fadeIn(tween(700)) + slideInVertically(tween(700)) { 50 }
             ) {
-                Text(
-                    text = "DB",
-                    fontSize = 21.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = SciFiCyan,
-                    fontFamily = OrbitronFontFamily,
-                    letterSpacing = 1.sp
-                )
+                Column {
+                    StartupMark()
+                    Spacer(Modifier.height(28.dp))
+                    Text(
+                        "SiTeki",
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontSize = 56.sp,
+                        lineHeight = 58.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = (-2).sp
+                    )
+                    Text(
+                        "Engineering workspace",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        "Satu ruang kerja untuk menjaga mesin,\npekerjaan, dan tim tetap bergerak.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 13.sp,
+                        lineHeight = 20.sp
+                    )
+                }
+            }
 
-                Text(
-                    text = "SYNC",
-                    fontSize = 7.sp,
-                    color = Color.White.copy(alpha = 0.55f),
-                    fontFamily = OrbitronFontFamily,
-                    letterSpacing = 1.sp
-                )
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+            ) {
+                Column(Modifier.padding(18.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            steps[(progress * (steps.size - 1)).toInt().coerceIn(0, steps.lastIndex)],
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "${(animatedProgress * 100).toInt()}%",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    LinearProgressIndicator(
+                        progress = animatedProgress,
+                        modifier = Modifier.fillMaxWidth().height(4.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        strokeCap = StrokeCap.Square
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "Sinkronisasi aman · konfigurasi lokal",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun LoadingStepRow(
-    label: String,
-    stepIndex: Int,
-    currentStep: Int,
-    isFinished: Boolean
-) {
-    val isCompleted =
-        isFinished || stepIndex < currentStep
+private fun StartupMark() {
+    val transition = rememberInfiniteTransition(label = "startupMark")
+    val rotation by transition.animateFloat(
+        0f,
+        360f,
+        infiniteRepeatable(tween(5200, easing = LinearEasing)),
+        label = "startupRotation"
+    )
+    val primary = MaterialTheme.colorScheme.primary
+    val outline = MaterialTheme.colorScheme.outline
 
-    val isActive =
-        !isFinished && stepIndex == currentStep
-
-    val indicatorColor = when {
-        isCompleted -> SciFiCyan
-        isActive -> Color.White
-        else -> Color.White.copy(alpha = 0.18f)
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(20.dp)
-                .clip(CircleShape)
-                .background(
-                    indicatorColor.copy(
-                        alpha = if (isCompleted) 0.17f else 0.08f
-                    )
-                )
-                .border(
-                    width = 1.dp,
-                    color = indicatorColor.copy(alpha = 0.72f),
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = when {
-                    isCompleted -> "✓"
-                    isActive -> "•"
-                    else -> ""
-                },
-                fontSize = if (isActive) 16.sp else 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = indicatorColor
+    Box(Modifier.size(84.dp), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            drawArc(
+                color = outline,
+                startAngle = 0f,
+                sweepAngle = 360f,
+                useCenter = false,
+                style = Stroke(1.dp.toPx())
+            )
+            drawArc(
+                color = primary,
+                startAngle = rotation,
+                sweepAngle = 112f,
+                useCenter = false,
+                style = Stroke(5.dp.toPx(), cap = StrokeCap.Square)
+            )
+            drawLine(
+                color = primary,
+                start = Offset(size.width * 0.28f, size.height * 0.72f),
+                end = Offset(size.width * 0.72f, size.height * 0.28f),
+                strokeWidth = 3.dp.toPx()
             )
         }
-
-        Spacer(modifier = Modifier.width(11.dp))
-
-        Text(
-            text = label,
-            modifier = Modifier.weight(1f),
-            fontSize = 12.sp,
-            color = when {
-                isCompleted -> Color.White.copy(alpha = 0.78f)
-                isActive -> Color.White
-                else -> Color.White.copy(alpha = 0.30f)
-            }
-        )
-
-        Text(
-            text = when {
-                isCompleted -> "OK"
-                isActive -> "READING"
-                else -> "WAIT"
-            },
-            fontSize = 8.sp,
-            color = indicatorColor,
-            fontFamily = OrbitronFontFamily,
-            letterSpacing = 0.5.sp
-        )
+        Box(Modifier.size(12.dp).background(primary, CircleShape))
     }
-}
-
-@Composable
-private fun PulsingDot() {
-    val infiniteTransition =
-        rememberInfiniteTransition(label = "statusPulse")
-
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.25f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 650),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "statusAlpha"
-    )
-
-    Box(
-        modifier = Modifier
-            .size(8.dp)
-            .clip(CircleShape)
-            .background(SciFiCyan.copy(alpha = alpha))
-    )
 }

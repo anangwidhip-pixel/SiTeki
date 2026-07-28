@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -54,6 +55,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.window.Dialog
 import com.example.sitekiver01.components.SciFiBackground
+import com.example.sitekiver01.components.DatabaseLoadingState
 import com.example.sitekiver01.screens.*
 import com.example.sitekiver01.ui.theme.*
 import kotlinx.coroutines.Dispatchers
@@ -78,8 +80,20 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
         )
         setContent {
-            SiTekiVer01Theme {
-                AppNavigation()
+            val preferences = remember {
+                getSharedPreferences("siteki_appearance", MODE_PRIVATE)
+            }
+            var darkTheme by rememberSaveable {
+                mutableStateOf(preferences.getBoolean("dark_theme", false))
+            }
+            SiTekiVer01Theme(darkTheme = darkTheme) {
+                AppNavigation(
+                    darkTheme = darkTheme,
+                    onToggleTheme = {
+                        darkTheme = !darkTheme
+                        preferences.edit().putBoolean("dark_theme", darkTheme).apply()
+                    }
+                )
             }
         }
     }
@@ -94,8 +108,6 @@ suspend fun fetchOpenOrders(url: String): List<OrderItem> {
         val result = mutableListOf<OrderItem>()
         try {
             val response = URL(url).readText().trim()
-            Log.d("SiTekiData", "Response: $response")
-
             if (!response.startsWith("[")) {
                 Log.e("SiTekiData", "Format Salah: Respon bukan JSON Array")
                 return@withContext emptyList()
@@ -114,9 +126,9 @@ suspend fun fetchOpenOrders(url: String): List<OrderItem> {
                         kerusakan = obj.optString("kerusakan", ""),
                         urgensi = obj.optString("urgensi", ""),
                         status = status,
-                        bagianOrder = obj.optString("bagian_order", ""),
-                        namaOrder = obj.optString("nama_order", ""),
-                        bagianTujuan = obj.optString("bagian_tujuan", "")
+                        bagianOrder = obj.optString("bagianOrder", obj.optString("bagian_order", "")),
+                        namaOrder = obj.optString("namaOrder", obj.optString("nama_order", "")),
+                        bagianTujuan = obj.optString("bagianTujuan", obj.optString("bagian_tujuan", ""))
                     ))
                 }
             }
@@ -128,7 +140,10 @@ suspend fun fetchOpenOrders(url: String): List<OrderItem> {
 }
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(
+    darkTheme: Boolean = false,
+    onToggleTheme: () -> Unit = {}
+) {
 
     val context = LocalContext.current
     val navController = androidx.navigation.compose.rememberNavController()
@@ -211,19 +226,18 @@ fun AppNavigation() {
     if (showExitDialog) {
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
-            containerColor = SciFiGlass,
-            modifier = Modifier.border(1.dp, SciFiBorderLight, RoundedCornerShape(28.dp)),
+            containerColor = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp)),
             title = {
                 Text(
                     text = "Konfirmasi Keluar",
-                    color = Color.White,
-                    fontFamily = OrbitronFontFamily
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             },
             text = {
                 Text(
                     text = "Apakah Anda akan keluar dari aplikasi?",
-                    color = SciFiTextMuted
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
             confirmButton = {
@@ -239,7 +253,7 @@ fun AppNavigation() {
                     onClick = { showExitDialog = false },
                     border = BorderStroke(1.dp, SciFiBorderLight)
                 ) {
-                    Text("No", color = Color.White)
+                    Text("Batal", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         )
@@ -251,11 +265,11 @@ fun AppNavigation() {
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .wrapContentHeight(),
-                shape = RoundedCornerShape(28.dp),
-                color = Color(0xFF0F172A),
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surface,
                 border = BorderStroke(
                     1.dp,
-                    Brush.verticalGradient(listOf(SciFiBorderLight, Color.Transparent))
+                    Brush.verticalGradient(listOf(MaterialTheme.colorScheme.outline, Color.Transparent))
                 )
             ) {
                 Column(
@@ -267,15 +281,14 @@ fun AppNavigation() {
                         text = "PILIH HALAMAN",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        fontFamily = OrbitronFontFamily,
+                        color = MaterialTheme.colorScheme.onSurface,
                         letterSpacing = 1.sp
                     )
 
                     Text(
                         text = "Apakah Ingin Melihat Jadwal?",
                         fontSize = 13.sp,
-                        color = SciFiTextMuted,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         lineHeight = 18.sp
                     )
@@ -312,12 +325,12 @@ fun AppNavigation() {
                             },
                             modifier = Modifier.weight(1f).height(40.dp),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                            border = BorderStroke(1.dp, SciFiBorderLight)
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                         ) {
                             Text(
                                 text = "PERAWATAN",
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 11.sp,
                                 fontFamily = OrbitronFontFamily
@@ -333,9 +346,13 @@ fun AppNavigation() {
     val showBottomBar =
         currentScreen in listOf(Screen.Dashboard, Screen.QRScanner) && UserSession.isLoggedIn
 
-    Crossfade(
+    AnimatedContent(
         targetState = if (showSplash) Screen.Splash else currentScreen,
-        label = "mainScreenTransition"
+        transitionSpec = {
+            (fadeIn(tween(260)) + slideInHorizontally(tween(360)) { it / 9 })
+                .togetherWith(fadeOut(tween(180)) + slideOutHorizontally(tween(260)) { -it / 12 })
+        },
+        label = "workspaceScreenTransition"
     ) { targetScreen ->
 
         if (targetScreen == Screen.Splash) {
@@ -348,7 +365,7 @@ fun AppNavigation() {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(GlassBase)
+                    .background(MaterialTheme.colorScheme.background)
             ) {
                 SciFiBackground()
 
@@ -358,17 +375,16 @@ fun AppNavigation() {
                         if (showBottomBar) {
                             CustomBottomNavigation(
                                 selectedIndex = selectedIndex,
+                                darkTheme = darkTheme,
                                 onItemSelected = { index ->
-                                    selectedIndex = index
+                                    if (index != 4) selectedIndex = index
 
                                     when (index) {
                                         0 -> currentScreen = Screen.Dashboard
                                         1 -> showPerawatanPopup = true
                                         2 -> currentScreen = Screen.QRScanner
                                         3 -> currentScreen = Screen.LapKerja
-                                        4 -> {
-                                            // Halaman akun
-                                        }
+                                        4 -> onToggleTheme()
                                     }
                                 }
                             )
@@ -438,6 +454,8 @@ fun AppNavigation() {
                                     onNavigateToManagementUser = {
                                         currentScreen = Screen.ManagementUser
                                     },
+                                    darkTheme = darkTheme,
+                                    onToggleTheme = onToggleTheme,
                                     onLogout = {
                                         UserSession.logout()
                                         currentScreen = Screen.Login
@@ -734,6 +752,70 @@ data class MaintenanceTask(
     val tanggal: String
 )
 
+data class DashboardMaintenanceResult(
+    val tasks: List<MaintenanceTask>,
+    val isFromPreviousWeek: Boolean
+)
+
+private suspend fun fetchDashboardMaintenance(): DashboardMaintenanceResult {
+    return withContext(Dispatchers.IO) {
+        val masterText = URL(
+            "https://script.google.com/macros/s/AKfycbwSnaaYVxXWVngeGQYU2im2G5FQ6L7WstjTkx7IW3jVYcuELECt0_cyvM0cFx4Uf8U/exec?action=getRawatMaster"
+        ).readText()
+        val actualText = URL(
+            "https://script.google.com/macros/s/AKfycbwQ7ocBNsl4x5-rGLrSyvkyluhSRl3B_LvmkA3cFuvuL9pBbVAOUI3i_Vu6jwfkfOA/exec?action=getPerawatan"
+        ).readText()
+
+        val masterArray = JSONArray(masterText)
+        val actualArray = JSONArray(actualText)
+        val completedByMachine = mutableMapOf<String, MutableSet<String>>()
+
+        for (index in 0 until actualArray.length()) {
+            val item = actualArray.getJSONObject(index)
+            val machineName = item.optString("nama_mesin").trim()
+            val date = item.optString("tanggal").trim()
+            if (machineName.isNotEmpty() && date.isNotEmpty()) {
+                completedByMachine.getOrPut(machineName) { mutableSetOf() }.add(date)
+            }
+        }
+
+        val today = Calendar.getInstance()
+        val todayTasks = getPendingTasks(today, masterArray, completedByMachine)
+        if (todayTasks.isNotEmpty()) {
+            return@withContext DashboardMaintenanceResult(
+                tasks = todayTasks.distinctBy { "${it.namaAsli}|${it.status}|${it.tanggal}" },
+                isFromPreviousWeek = false
+            )
+        }
+
+        val previousMonday = (today.clone() as Calendar).apply {
+            firstDayOfWeek = Calendar.MONDAY
+            minimalDaysInFirstWeek = 4
+            set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            add(Calendar.WEEK_OF_YEAR, -1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        val overdueTasks = buildList {
+            repeat(7) { dayOffset ->
+                val day = (previousMonday.clone() as Calendar).apply {
+                    add(Calendar.DAY_OF_MONTH, dayOffset)
+                }
+                addAll(getPendingTasks(day, masterArray, completedByMachine))
+            }
+        }
+            .distinctBy { "${it.namaAsli}|${it.status}" }
+
+        DashboardMaintenanceResult(
+            tasks = overdueTasks,
+            isFromPreviousWeek = overdueTasks.isNotEmpty()
+        )
+    }
+}
+
 fun getPendingTasks(
     cal: Calendar,
     masterArray: JSONArray,
@@ -775,11 +857,16 @@ fun DashboardScreen(
     onNavigateToIsiPerawatan: (String, String, String) -> Unit,
     onNavigateToLainnya: () -> Unit,
     onNavigateToManagementUser: () -> Unit,
+    darkTheme: Boolean,
+    onToggleTheme: () -> Unit,
     onLogout: () -> Unit
 ) {
-    val apiUrl = "https://script.google.com/macros/s/AKfycbyP84TUvoujsa0uuCYLR172Ft7EHzY_ofH_XkmJnYh1Y3qDICdSnlBBkGf9VU1WivQ/exec?action=getAllOrders"
+    val apiUrl = "https://script.google.com/macros/s/AKfycbzbmKFheI55ccsJ_kLdOzy6VIdGpgKIy2s9pljrIM8sNbgJ_RLywnzF-Q2sJTslVQU/exec?action=getAllOrders"
     var openOrders by remember { mutableStateOf<List<OrderItem>>(emptyList()) }
     var isLoadingOrders by remember { mutableStateOf(true) }
+    var maintenanceResult by remember { mutableStateOf<DashboardMaintenanceResult?>(null) }
+    var isLoadingMaintenance by remember { mutableStateOf(true) }
+    var maintenanceError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         isLoadingOrders = true
@@ -787,49 +874,83 @@ fun DashboardScreen(
         isLoadingOrders = false
     }
 
-    Column(modifier = modifier.fillMaxSize().background(Color.Transparent).verticalScroll(rememberScrollState())) {
-        TopHeader(openOrders = openOrders, onOrderKerjaClick = onOrderKerjaClick, onNavigateToWebView = onNavigateToWebView, onNavigateToIsiPerawatan = onNavigateToIsiPerawatan)
-
-        // REVISI: HUD Ringkas untuk Log Out siber akun di bagian atas Dashboard
-        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = onLogout) {
-                Icon(Icons.Default.Logout, contentDescription = null, tint = SciFiSaturday, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("LOGOUT SYSTEM", color = SciFiSaturday, fontSize = 11.sp, fontFamily = OrbitronFontFamily, fontWeight = FontWeight.Bold)
-            }
+    LaunchedEffect(Unit) {
+        isLoadingMaintenance = true
+        maintenanceError = null
+        try {
+            maintenanceResult = fetchDashboardMaintenance()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e("DashboardMaintenance", "Gagal membaca jadwal: ${e.message}", e)
+            maintenanceError = "Jadwal perawatan belum dapat dimuat"
+        } finally {
+            isLoadingMaintenance = false
         }
+    }
 
-        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-            Text(text = "Order Kerja", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp, fontFamily = OrbitronFontFamily)
-            Spacer(modifier = Modifier.height(16.dp))
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 18.dp)
+    ) {
+        WorkspaceHeader(
+            openOrderCount = openOrders.size,
+            darkTheme = darkTheme,
+            onToggleTheme = onToggleTheme,
+            onLogout = onLogout
+        )
 
-            if (isLoadingOrders) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth().height(160.dp),
-                    shape = RoundedCornerShape(28.dp),
-                    color = SciFiGlass,
-                    border = BorderStroke(1.dp, SciFiBorderLight)
-                ) {
-                    Box(contentAlignment = Alignment.Center) { CircularProgressIndicator(color = SciFiCyan) }
-                }
-            } else {
-                MachineCard(
-                    orders = if (openOrders.isEmpty()) {
-                        listOf("Tidak ada order kerja terbuka")
-                    } else {
-                        openOrders.mapIndexed { index, it ->
-                            "Order ${index + 1}: ${it.kerusakan}\n${it.namaMesin.ifEmpty { "Data Kosong" }}"
-                        }
-                    },
-                    buttonText = "Lakukan Perbaikan",
-                    onButtonClick = { index ->
-                        if (openOrders.isNotEmpty()) onOrderKerjaClick(openOrders[index])
-                    }
+        Spacer(Modifier.height(26.dp))
+
+        SectionEyebrow("PRIORITAS HARI INI")
+        Spacer(Modifier.height(10.dp))
+
+        if (isLoadingOrders) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().height(174.dp),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+            ) {
+                DatabaseLoadingState(
+                    label = "Menyinkronkan order kerja",
+                    modifier = Modifier.fillMaxSize()
                 )
             }
+        } else {
+            MachineCard(
+                orders = if (openOrders.isEmpty()) {
+                    listOf("Tidak ada order kerja terbuka")
+                } else {
+                    openOrders.mapIndexed { index, it ->
+                        "${index + 1}. ${it.namaMesin.ifEmpty { "Tanpa nama mesin" }}\n${it.kerusakan}"
+                    }
+                },
+                buttonText = "Buka order",
+                onButtonClick = { index ->
+                    if (openOrders.isNotEmpty()) onOrderKerjaClick(openOrders[index])
+                }
+            )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(Modifier.height(30.dp))
+        SectionEyebrow("PERAWATAN")
+        Spacer(Modifier.height(12.dp))
+
+        DashboardMaintenanceSliderPanel(
+            result = maintenanceResult,
+            isLoading = isLoadingMaintenance,
+            errorMessage = maintenanceError,
+            onTaskClick = { task ->
+                onNavigateToIsiPerawatan(task.namaAsli, task.tanggal, task.status)
+            }
+        )
+
+        Spacer(Modifier.height(30.dp))
+        SectionEyebrow("RUANG KERJA")
+        Spacer(Modifier.height(12.dp))
 
         CategorySection(
             onPerawatanClick = onNavigateToPerawatan,
@@ -843,14 +964,580 @@ fun DashboardScreen(
             onNavigateToManagementUser = onNavigateToManagementUser
         )
 
-        NewsSection()
-
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(Modifier.height(110.dp))
     }
 }
 
 @Composable
-fun CustomBottomNavigation(modifier: Modifier = Modifier, selectedIndex: Int, onItemSelected: (Int) -> Unit) {
+private fun WorkspaceHeader(
+    openOrderCount: Int,
+    darkTheme: Boolean,
+    onToggleTheme: () -> Unit,
+    onLogout: () -> Unit
+) {
+    val transition = rememberInfiniteTransition(label = "workspaceSignal")
+    val signal by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1400), RepeatMode.Reverse),
+        label = "workspaceSignalAlpha"
+    )
+
+    Column(Modifier.fillMaxWidth().padding(top = 20.dp)) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier
+                        .size(44.dp)
+                        .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("ST", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Black)
+                }
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text("SiTeki Workspace", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text(UserSession.role.ifBlank { "Operational user" }, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                IconButton(onClick = onToggleTheme) {
+                    Icon(
+                        if (darkTheme) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
+                        "Ganti tema",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                IconButton(onClick = onLogout) {
+                    Icon(Icons.Rounded.Logout, "Keluar", tint = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(28.dp))
+        Text(
+            "Selamat bekerja,\n${UserSession.namaFull.ifBlank { "Tim Teknik" }}",
+            color = MaterialTheme.colorScheme.onBackground,
+            fontSize = 32.sp,
+            lineHeight = 36.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = (-1).sp
+        )
+        Spacer(Modifier.height(10.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(7.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = signal), CircleShape))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "$openOrderCount order terbuka · sistem tersinkron",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun SectionEyebrow(text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.width(22.dp).height(3.dp).background(MaterialTheme.colorScheme.primary))
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 1.5.sp
+        )
+    }
+}
+
+@Composable
+private fun DashboardMaintenanceSliderPanel(
+    result: DashboardMaintenanceResult?,
+    isLoading: Boolean,
+    errorMessage: String?,
+    onTaskClick: (MaintenanceTask) -> Unit
+) {
+    if (!isLoading && errorMessage == null && result != null && result.tasks.isNotEmpty()) {
+        DashboardMaintenanceSlider(result = result, onTaskClick = onTaskClick)
+    } else {
+        DashboardMaintenancePanel(
+            result = result,
+            isLoading = isLoading,
+            errorMessage = errorMessage,
+            onTaskClick = onTaskClick
+        )
+    }
+}
+
+@Composable
+private fun DashboardMaintenanceSlider(
+    result: DashboardMaintenanceResult,
+    onTaskClick: (MaintenanceTask) -> Unit
+) {
+    val tasks = result.tasks
+    val pagerState = rememberPagerState(pageCount = { tasks.size })
+    val isPreview = LocalInspectionMode.current
+
+    LaunchedEffect(tasks) {
+        if (!isPreview && tasks.size > 1) {
+            while (true) {
+                delay(5000)
+                try {
+                    pagerState.animateScrollToPage(
+                        (pagerState.currentPage + 1) % tasks.size,
+                        animationSpec = tween(650)
+                    )
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                }
+            }
+        }
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth().height(174.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        shadowElevation = 4.dp
+    ) {
+        Column(Modifier.fillMaxSize().padding(18.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (result.isFromPreviousWeek) {
+                        MaterialTheme.colorScheme.tertiaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.primaryContainer
+                    }
+                ) {
+                    Icon(
+                        if (result.isFromPreviousWeek) Icons.Rounded.History else Icons.Rounded.CalendarToday,
+                        null,
+                        tint = if (result.isFromPreviousWeek) {
+                            MaterialTheme.colorScheme.onTertiaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
+                        modifier = Modifier.padding(9.dp).size(19.dp)
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    if (result.isFromPreviousWeek) {
+                        "${tasks.size} PERAWATAN TERTUNDA"
+                    } else {
+                        "${tasks.size} PERAWATAN HARI INI"
+                    },
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 0.8.sp
+                )
+                Text(
+                    "${pagerState.currentPage + 1}/${tasks.size}",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Black
+                )
+            }
+
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.weight(1f)
+            ) { page ->
+                val task = tasks[page]
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onTaskClick(task) }
+                        .padding(top = 13.dp)
+                ) {
+                    Text(
+                        task.namaDisplay,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp,
+                        lineHeight = 22.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.height(5.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = RoundedCornerShape(5.dp),
+                            color = if (task.status == "B") {
+                                MaterialTheme.colorScheme.secondaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.primaryContainer
+                            }
+                        ) {
+                            Text(
+                                task.status.ifBlank { "M" },
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                                color = if (task.status == "B") {
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                },
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "${if (task.status == "B") "Bulanan" else "Mingguan"} · ${task.tanggal}",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    repeat(tasks.size.coerceAtMost(5)) { index ->
+                        Box(
+                            Modifier
+                                .width(if (index == pagerState.currentPage) 18.dp else 5.dp)
+                                .height(5.dp)
+                                .background(
+                                    if (index == pagerState.currentPage) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.outline
+                                    },
+                                    CircleShape
+                                )
+                        )
+                    }
+                }
+                TextButton(
+                    onClick = {
+                        onTaskClick(tasks[pagerState.currentPage.coerceAtMost(tasks.lastIndex)])
+                    }
+                ) {
+                    Text("Isi perawatan", fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(6.dp))
+                    Icon(Icons.Rounded.ArrowForward, null, Modifier.size(17.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DashboardMaintenancePanel(
+    result: DashboardMaintenanceResult?,
+    isLoading: Boolean,
+    errorMessage: String?,
+    onTaskClick: (MaintenanceTask) -> Unit
+) {
+    when {
+        isLoading -> {
+            Surface(
+                modifier = Modifier.fillMaxWidth().height(166.dp),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+            ) {
+                DatabaseLoadingState(
+                    label = "Memeriksa jadwal perawatan",
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+
+        errorMessage != null -> {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.errorContainer,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.35f))
+            ) {
+                Row(
+                    Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Rounded.CloudOff, null, tint = MaterialTheme.colorScheme.error)
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        errorMessage,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
+        result == null || result.tasks.isEmpty() -> {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+            ) {
+                Row(
+                    Modifier.padding(17.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Icon(
+                            Icons.Rounded.TaskAlt,
+                            null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(9.dp).size(20.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            "Tidak ada perawatan tertunda",
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "Hari ini dan minggu sebelumnya sudah bersih.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        else -> {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                shadowElevation = 3.dp
+            ) {
+                Column {
+                    Row(
+                        Modifier.fillMaxWidth().padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (result.isFromPreviousWeek) {
+                                MaterialTheme.colorScheme.tertiaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.primaryContainer
+                            }
+                        ) {
+                            Icon(
+                                if (result.isFromPreviousWeek) Icons.Rounded.History else Icons.Rounded.CalendarToday,
+                                null,
+                                tint = if (result.isFromPreviousWeek) {
+                                    MaterialTheme.colorScheme.onTertiaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.primary
+                                },
+                                modifier = Modifier.padding(9.dp).size(20.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                if (result.isFromPreviousWeek) {
+                                    "Tertunda minggu sebelumnya"
+                                } else {
+                                    "Perawatan hari ini"
+                                },
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                            Text(
+                                if (result.isFromPreviousWeek) {
+                                    "Belum tercatat selesai dan perlu ditindaklanjuti."
+                                } else {
+                                    "${result.tasks.size} pekerjaan sesuai jadwal hari ini."
+                                },
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 10.sp
+                            )
+                        }
+                        Text(
+                            result.tasks.size.toString().padStart(2, '0'),
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                    result.tasks.forEachIndexed { index, task ->
+                        var visible by remember(task.namaAsli, task.tanggal) { mutableStateOf(false) }
+                        LaunchedEffect(task.namaAsli, task.tanggal) {
+                            delay(index * 55L)
+                            visible = true
+                        }
+                        AnimatedVisibility(
+                            visible = visible,
+                            enter = fadeIn(tween(220)) + slideInHorizontally(tween(280)) { 24 }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onTaskClick(task) }
+                                    .padding(horizontal = 16.dp, vertical = 13.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = if (task.status == "B") {
+                                        MaterialTheme.colorScheme.secondaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    }
+                                ) {
+                                    Text(
+                                        task.status.ifBlank { "M" },
+                                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                        color = if (task.status == "B") {
+                                            MaterialTheme.colorScheme.onSecondaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        },
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        task.namaDisplay,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        "${if (task.status == "B") "Bulanan" else "Mingguan"} · ${task.tanggal}",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 10.sp
+                                    )
+                                }
+                                Icon(
+                                    Icons.Rounded.ArrowForward,
+                                    "Isi perawatan",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        if (index < result.tasks.lastIndex) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = 64.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CustomBottomNavigation(
+    modifier: Modifier = Modifier,
+    selectedIndex: Int,
+    darkTheme: Boolean,
+    onItemSelected: (Int) -> Unit
+) {
+    val items = listOf(
+        Triple("Beranda", Icons.Rounded.Home, 0),
+        Triple("Rawat", Icons.Rounded.Build, 1),
+        Triple("Pindai", Icons.Rounded.QrCodeScanner, 2),
+        Triple("Laporan", Icons.AutoMirrored.Rounded.Assignment, 3),
+        Triple(if (darkTheme) "Terang" else "Gelap", if (darkTheme) Icons.Rounded.LightMode else Icons.Rounded.DarkMode, 4)
+    )
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+            .height(68.dp),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        shadowElevation = 16.dp
+    ) {
+        Row(
+            Modifier.fillMaxSize().padding(horizontal = 7.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            items.forEach { (label, icon, index) ->
+                val selected = selectedIndex == index && index != 4
+                val width by animateDpAsState(if (selected) 88.dp else 52.dp, tween(260), label = "dockWidth")
+                val container by animateColorAsState(
+                    if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                    tween(220),
+                    label = "dockColor"
+                )
+                Surface(
+                    onClick = { onItemSelected(index) },
+                    modifier = Modifier.width(width).fillMaxHeight(),
+                    shape = RoundedCornerShape(13.dp),
+                    color = container
+                ) {
+                    Row(
+                        Modifier.fillMaxSize().padding(horizontal = if (selected) 11.dp else 0.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            icon,
+                            label,
+                            modifier = Modifier.size(if (index == 2) 25.dp else 21.dp),
+                            tint = if (selected || index == 2) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        AnimatedVisibility(
+                            visible = selected,
+                            enter = fadeIn(tween(180)) + expandHorizontally(),
+                            exit = fadeOut(tween(120)) + shrinkHorizontally()
+                        ) {
+                            Text(
+                                label,
+                                modifier = Modifier.padding(start = 7.dp),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LegacyCustomBottomNavigation(modifier: Modifier = Modifier, selectedIndex: Int, onItemSelected: (Int) -> Unit) {
     val density = LocalDensity.current
 
     val barHeight = 72.dp
@@ -1214,10 +1901,10 @@ fun TopHeader(
                     }
                     Spacer(Modifier.height(20.dp))
                     if (isLoading) {
-                        Box(
-                            Modifier.fillMaxWidth().height(150.dp),
-                            Alignment.Center
-                        ) { CircularProgressIndicator(color = GlassAccentCyan) }
+                        DatabaseLoadingState(
+                            label = "Memeriksa jadwal perawatan",
+                            modifier = Modifier.fillMaxWidth().height(150.dp)
+                        )
                     } else if (notificationData.isEmpty()) {
                         Column(
                             Modifier.fillMaxWidth().padding(vertical = 20.dp),
@@ -1405,9 +2092,10 @@ fun TopHeader(
                         color = GlassSurface,
                         border = BorderStroke(1.dp, GlassBorder)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = GlassAccentCyan)
-                        }
+                        DatabaseLoadingState(
+                            label = "Menyinkronkan order perawatan",
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
                 } else {
                     MaintenanceTable(
@@ -1578,75 +2266,88 @@ fun MaintenanceTable(data: List<MaintenanceTask>, onActionClick: (MaintenanceTas
 
 @Composable
 fun MachineCard(orders: List<String>, buttonText: String, onButtonClick: (Int) -> Unit = {}) {
-    // PROTEKSI SIBER: Pastikan jumlah halaman minimal 1 agar PagerState tidak memicu Force Close
     val safePageCount = if (orders.isEmpty()) 1 else orders.size
     val pagerState = rememberPagerState(pageCount = { safePageCount })
     val isPreview = LocalInspectionMode.current
 
     LaunchedEffect(orders) {
-        // Hanya jalankan auto-scroll jika data orders benar-benar ada dan lebih dari 1 halaman
         if (!isPreview && orders.size > 1) {
             while (true) {
                 delay(5000)
                 try {
                     val nextPage = (pagerState.currentPage + 1) % orders.size
-                    pagerState.animateScrollToPage(nextPage, animationSpec = tween(1000))
+                    pagerState.animateScrollToPage(nextPage, animationSpec = tween(650))
                 } catch (e: Exception) {
-                    // Mencegah crash jika data berubah mendadak di background thread
-                    e.printStackTrace()
+                    if (e is CancellationException) throw e
                 }
             }
         }
     }
 
-    val density = LocalDensity.current
-    val btnW = 158.dp; val btnH = 29.dp; val cardR = 32.dp
-    val btnWidthPx = with(density) { btnW.toPx() }; val btnHeightPx = with(density) { btnH.toPx() }; val cardRadiusPx = with(density) { cardR.toPx() }; val gapPx = with(density) { 8.dp.toPx() }; val br = btnHeightPx / 2
-
-    Box(modifier = Modifier.fillMaxWidth().height(160.dp)) {
-        val notchedShape = GenericShape { size, _ ->
-            if (size.width > 0 && size.height > 0) {
-                val w = size.width; val h = size.height; val r = cardRadiusPx; val notchTop = h - btnHeightPx - gapPx; val notchLeft = w - btnWidthPx - gapPx
-                moveTo(r, 0f); lineTo(w - r, 0f); arcTo(Rect(w - 2 * r, 0f, w, 2 * r), 270f, 90f, false); lineTo(w, notchTop - br); arcTo(Rect(w - 2 * br, notchTop - 2 * br, w, notchTop), 0f, 90f, false); lineTo(notchLeft + br, notchTop); arcTo(Rect(notchLeft, notchTop, notchLeft + 2 * br, notchTop + 2 * br), 270f, -90f, false); lineTo(notchLeft, h - br); arcTo(Rect(notchLeft - 2 * br, h - 2 * br, notchLeft, h), 0f, 90f, false); lineTo(r, h); arcTo(Rect(0f, h - 2 * r, 2 * r, h), 90f, 90f, false); lineTo(0f, r); arcTo(Rect(0f, 0f, 2 * r, 2 * r), 180f, 90f, false); close()
+    Surface(
+        modifier = Modifier.fillMaxWidth().height(174.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        shadowElevation = 4.dp
+    ) {
+        Column(Modifier.fillMaxSize().padding(18.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer
+                ) {
+                    Icon(
+                        Icons.Rounded.Engineering,
+                        null,
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier.padding(9.dp).size(19.dp)
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    if (orders.size == 1 && orders.first().contains("Tidak ada")) "ANTRIAN BERSIH" else "${orders.size} ORDER PERLU DITANGANI",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 0.8.sp
+                )
             }
-        }
-        Surface(modifier = Modifier.fillMaxSize(), shape = notchedShape, color = GlassSurface) {
-            Row(modifier = Modifier.fillMaxSize().padding(start = 24.dp, end = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(painter = painterResource(id = R.drawable.mesin), contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(86.dp))
-                Spacer(modifier = Modifier.width(20.dp)); Box(modifier = Modifier.width(1.5.dp).height(64.dp).background(Color.White.copy(alpha = 0.2f))); Spacer(modifier = Modifier.width(20.dp))
 
-                // Amankan pembacaan index pager agar tidak OutOfBounds
-                HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { page ->
-                    val textTampil = if (orders.isEmpty()) "Tidak ada data" else if (page < orders.size) orders[page] else "Memuat data..."
-                    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
-                        Text(
-                            text = textTampil,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = Color.White,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+            HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { page ->
+                val text = orders.getOrElse(page) { "Tidak ada data" }
+                Text(
+                    text,
+                    modifier = Modifier.fillMaxWidth().padding(top = 15.dp),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    lineHeight = 23.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    repeat(orders.size.coerceAtMost(5)) { index ->
+                        Box(
+                            Modifier
+                                .width(if (index == pagerState.currentPage) 18.dp else 5.dp)
+                                .height(5.dp)
+                                .background(
+                                    if (index == pagerState.currentPage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                    CircleShape
+                                )
                         )
                     }
                 }
-            }
-        }
-
-        // Hanya munculkan tombol aksi perbaikan jika daftar order kerja tidak kosong
-        if (orders.isNotEmpty() && !orders[0].contains("Tidak ada order kerja terbuka")) {
-            Button(
-                onClick = {
-                    if (pagerState.currentPage < orders.size) {
-                        onButtonClick(pagerState.currentPage)
+                if (orders.isNotEmpty() && !orders[0].contains("Tidak ada order kerja terbuka")) {
+                    TextButton(onClick = { onButtonClick(pagerState.currentPage.coerceAtMost(orders.lastIndex)) }) {
+                        Text(buttonText, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.width(6.dp))
+                        Icon(Icons.Rounded.ArrowForward, null, Modifier.size(17.dp))
                     }
-                },
-                modifier = Modifier.align(Alignment.BottomEnd).width(btnW).height(btnH),
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Box(modifier = Modifier.fillMaxSize().background(brush = Brush.horizontalGradient(colors = listOf(GlassAccentCyan, Color(0xFF0054B2))), shape = CircleShape), contentAlignment = Alignment.Center) {
-                    Text(text = buttonText, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 10.sp)
                 }
             }
         }
@@ -1704,19 +2405,14 @@ fun CategorySection(
         }
     }
 
-    Column(modifier = Modifier.fillMaxWidth().background(Color.Transparent)
-        .padding(start = 24.dp, end = 24.dp, top = 0.dp, bottom = 20.dp)
-    ) {
-        Text(text = "Kategori", fontSize = 24.sp, fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 20.dp), color = Color.White)
-
-        items.chunked(4).forEach { row ->
+    Column(modifier = Modifier.fillMaxWidth()) {
+        items.chunked(2).forEachIndexed { rowIndex, row ->
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 row.forEach { item ->
-                    CategoryCard(item = item, modifier = Modifier.weight(1f), onClick = {
+                    CategoryCard(item = item, index = rowIndex * 2 + row.indexOf(item), modifier = Modifier.weight(1f), onClick = {
                         when (item.title) {
                             "Perawatan" -> onPerawatanClick()
                             "Laporan Kerja" -> onLapKerjaClick()
@@ -1730,9 +2426,8 @@ fun CategorySection(
                         }
                     })
                 }
-                // Jika baris terakhir memiliki jumlah kolom kurang dari 4, tambahkan Spacer penyeimbang
-                if (row.size < 4) {
-                    repeat(4 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
+                if (row.size < 2) {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -1740,10 +2435,45 @@ fun CategorySection(
 }
 
 @Composable
-fun CategoryCard(item: CategoryItem, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
-    Column(modifier = modifier.clickable { onClick() }, horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(modifier = Modifier.aspectRatio(1f).fillMaxWidth().background(brush = Brush.verticalGradient(colors = listOf(Color.White.copy(alpha = 0.05f), Color.White.copy(alpha = 0.1f))), shape = RoundedCornerShape(28.dp)).padding(12.dp), contentAlignment = Alignment.Center) { when (val icon = item.icon) { is ImageVector -> Icon(icon, null, tint = GlassAccentCyan, modifier = Modifier.size(36.dp)); is Int -> Icon(painterResource(id = icon), null, tint = Color.Unspecified, modifier = Modifier.size(36.dp)) } }
-        Text(text = item.title, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp), color = Color.White)
+fun CategoryCard(item: CategoryItem, index: Int = 0, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(index * 55L)
+        visible = true
+    }
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = fadeIn(tween(280)) + slideInVertically(tween(360)) { 24 }
+    ) {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth().height(92.dp),
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            shadowElevation = 2.dp
+        ) {
+            Column(
+                Modifier.fillMaxSize().padding(13.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    when (val icon = item.icon) {
+                        is ImageVector -> Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(23.dp))
+                        is Int -> Icon(painterResource(id = icon), null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(23.dp))
+                    }
+                    Icon(Icons.Rounded.NorthEast, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(15.dp))
+                }
+                Text(
+                    item.title,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+            }
+        }
     }
 }
 

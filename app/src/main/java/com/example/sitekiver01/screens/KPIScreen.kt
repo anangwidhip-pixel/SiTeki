@@ -110,7 +110,7 @@ fun KPIScreen(
 
     LaunchedEffect(Unit) { fetchData() }
 
-    Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
 
         // PONDASI UTAMA: Menggunakan Animasi Grid Siber Global
         SciFiBackground()
@@ -159,12 +159,12 @@ fun KPIScreenContent(
                 ) {
                     IconButton(
                         onClick = onBack,
-                        modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)
-                    ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = Color.White) }
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
+                    ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = MaterialTheme.colorScheme.onSurface) }
                     Spacer(Modifier.width(16.dp))
                     Text(
                         "KPI DASHBOARD",
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 18.sp,
                         fontFamily = OrbitronFontFamily,
@@ -185,9 +185,7 @@ fun KPIScreenContent(
                 }
         ) {
             if (isLoading && !isRefreshing) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = SciFiCyan)
-                }
+                DatabaseLoadingState(label = "Menghitung indikator KPI", modifier = Modifier.fillMaxSize())
             } else {
                 Column(modifier = Modifier
                     .fillMaxSize()

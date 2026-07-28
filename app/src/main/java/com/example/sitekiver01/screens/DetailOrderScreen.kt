@@ -30,7 +30,7 @@ fun DetailOrderScreen(
     onBack: () -> Unit,
     onLakukanPerbaikan: (OrderItem) -> Unit
 ) {
-    Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         // Animated Background Orbs
         val infiniteTransition = rememberInfiniteTransition(label = "orbs")
         val orbOffset by infiniteTransition.animateFloat(

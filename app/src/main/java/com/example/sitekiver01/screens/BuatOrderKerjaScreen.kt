@@ -118,7 +118,7 @@ fun BuatOrderKerjaScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
 
         // PONDASI UTAMA: Menggunakan Background Mesh Animasi Sinkron dengan Dashboard
         SciFiBackground()
@@ -141,11 +141,11 @@ fun BuatOrderKerjaScreen(
                         IconButton(
                             onClick = onBack,
                             modifier = Modifier.background(Color.White.copy(alpha = 0.08f), CircleShape)
-                        ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = Color.White) }
+                        ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = MaterialTheme.colorScheme.onSurface) }
                         Spacer(Modifier.width(16.dp))
                         Text(
-                            "BUAT ORDER KERJA",
-                            color = Color.White,
+                            "Buat Order Kerja",
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
                             fontFamily = OrbitronFontFamily,
@@ -404,7 +404,7 @@ private fun submitBuatOrderKerja(
 ) {
     CoroutineScope(Dispatchers.IO).launch {
         try {
-            val url = URL("https://script.google.com/macros/s/AKfycbzvd9W_bXkvRd5J0j3xU_ytpKfoo7pMS57wBeBOkKl991DcH10qElnrIdUvUKdwc30/exec")
+            val url = URL("https://script.google.com/macros/s/AKfycbzbmKFheI55ccsJ_kLdOzy6VIdGpgKIy2s9pljrIM8sNbgJ_RLywnzF-Q2sJTslVQU/exec")
 
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"

@@ -27,7 +27,7 @@ fun TravoMenuScreen(
     onNavigateToInspeksi: () -> Unit,
     onNavigateToDataTravo: () -> Unit
 ) {
-    Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         // Efek Background Grid Global
         SciFiBackground()
 
@@ -43,13 +43,13 @@ fun TravoMenuScreen(
                     onClick = onBack,
                     modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)
                 ) {
-                    Icon(Icons.Default.ArrowBackIosNew, "Back", tint = Color.White)
+                    Icon(Icons.Default.ArrowBackIosNew, "Back", tint = MaterialTheme.colorScheme.onSurface)
                 }
                 Spacer(Modifier.width(16.dp))
                 Text(
-                    text = "MANAJEMEN TRAVO",
+                    text = "Manajemen Travo",
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontFamily = OrbitronFontFamily,
                     fontSize = 18.sp,
                     letterSpacing = 1.sp

@@ -23,16 +23,26 @@ import androidx.compose.ui.unit.sp
 
 // Import Tema & Komponen Custom Anda
 import com.example.sitekiver01.OrbitronFontFamily
+import com.example.sitekiver01.APIConfig
+import com.example.sitekiver01.UserSession
 import com.example.sitekiver01.components.*
 import com.example.sitekiver01.ui.theme.*
 
 // Import Coroutines & Networking
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
+import org.json.JSONObject
+import java.net.HttpURLConnection
 import java.net.URL
+import java.util.Calendar
 
-data class RekapUser(val nik: String, val nama: String, val totalUpah: Double)
+data class RekapUser(
+    val nama: String,
+    val role: String,
+    val jumlahData: Int,
+    val totalJam: Double,
+    val totalUpah: Double
+)
 
 @Composable
 fun RekapAdminScreen(onBack: () -> Unit) {
@@ -42,15 +52,32 @@ fun RekapAdminScreen(onBack: () -> Unit) {
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             try {
-                val url = URL("https://script.google.com/macros/s/AKfycbw0NGDTuVDYdkcBXC5aW_dsaIIORfmQTO4m2lmc4w4c_sMjKI-tKl4HhU2yRlMy_Ynt/exec?action=getRekapSeluruhUser")
-                val res = url.readText()
-                val arr = JSONArray(res)
+                val connection = URL(APIConfig.USER_MANAGEMENT_URL).openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.doOutput = true
+                connection.instanceFollowRedirects = true
+                connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+                val payload = JSONObject()
+                    .put("action", "getOvertimeAdmin")
+                    .put("token", UserSession.token)
+                    .put("year", Calendar.getInstance().get(Calendar.YEAR))
+                    .put("month", 0)
+                connection.outputStream.use {
+                    it.write(payload.toString().toByteArray(Charsets.UTF_8))
+                }
+                val response = JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                if (!response.optString("status").equals("success", ignoreCase = true)) {
+                    throw IllegalStateException(response.optString("message", "Akses rekap ditolak"))
+                }
+                val arr = response.optJSONArray("data") ?: org.json.JSONArray()
                 val list = mutableListOf<RekapUser>()
                 for (i in 0 until arr.length()) {
                     val obj = arr.getJSONObject(i)
                     list.add(RekapUser(
-                        obj.optString("nik", "-"),
                         obj.optString("nama", "Tanpa Nama"),
+                        obj.optString("role", "-"),
+                        obj.optInt("jumlahData", 0),
+                        obj.optDouble("totalJam", 0.0),
                         obj.optDouble("totalUpah", 0.0)
                     ))
                 }
@@ -65,7 +92,7 @@ fun RekapAdminScreen(onBack: () -> Unit) {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         // Background Global yang sama dengan halaman order
         SciFiBackground()
 
@@ -131,7 +158,12 @@ fun RekapAdminScreen(onBack: () -> Unit) {
 
                                     Column(Modifier.weight(1f)) {
                                         Text(user.nama, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 15.sp)
-                                        Text("NIK: ${user.nik}", color = SciFiTextMuted, fontSize = 12.sp, fontFamily = OrbitronFontFamily)
+                                        Text(
+                                            "${user.role} · ${user.jumlahData} kali · ${String.format("%.2f", user.totalJam)} jam",
+                                            color = SciFiTextMuted,
+                                            fontSize = 11.sp,
+                                            fontFamily = OrbitronFontFamily
+                                        )
                                     }
 
                                     Text(

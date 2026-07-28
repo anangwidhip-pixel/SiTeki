@@ -69,10 +69,10 @@ fun PenyelesaianOrderScreen(
     var ukuranSparePart by remember { mutableStateOf("Tidak Pakai") }
     var keterangan by remember { mutableStateOf("") }
 
-    val SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyEz9WL-SsHlsl8nROHs28HVijqVu_UptKDuLMBI3z2mo6pDH_vIxOVM9B_fjmNow/exec"
+    val SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbmKFheI55ccsJ_kLdOzy6VIdGpgKIy2s9pljrIM8sNbgJ_RLywnzF-Q2sJTslVQU/exec"
     val statusOptions = listOf("Repair", "Breakdown", "Tunggu Part", "Overhoul Mesin", "Yang Lain")
 
-    Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
 
         // PONDASI UTAMA: Background Mesh Grid Animasi Global
         SciFiBackground()
@@ -95,11 +95,11 @@ fun PenyelesaianOrderScreen(
                         IconButton(
                             onClick = onBack,
                             modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)
-                        ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = Color.White) }
+                        ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = MaterialTheme.colorScheme.onSurface) }
                         Spacer(Modifier.width(16.dp))
                         Text(
-                            "PENYELESAIAN ORDER",
-                            color = Color.White,
+                            "Penyelesaian Order",
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
                             fontFamily = OrbitronFontFamily,

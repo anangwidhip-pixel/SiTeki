@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.sitekiver01.OrbitronFontFamily
+import com.example.sitekiver01.APIConfig
 import com.example.sitekiver01.UserSession
 import com.example.sitekiver01.components.*
 import com.example.sitekiver01.ui.theme.*
@@ -124,13 +125,29 @@ fun UserManagementScreen(
         isLoadingData = true
         scope.launch(Dispatchers.IO) {
             try {
-                // Panggil doGet dari Spreadsheet (2) Data User
-                val url = URL("https://script.google.com/macros/s/AKfycbx1UG3Pkc9YEbZZc9bKyP_Gg6Z9VaHfGl7OdvLt1ZFJRWIDlBNrqG7NJkgSlWSbZhQ/exec?action=getAllUser")
+                val url = URL(APIConfig.USER_MANAGEMENT_URL)
                 val conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "GET"
+                conn.requestMethod = "POST"
+                conn.doOutput = true
+                conn.instanceFollowRedirects = true
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+                val requestBody = JSONObject()
+                    .put("action", if (isAdmin) "getAllUsers" else "getMyProfile")
+                    .put("token", UserSession.token)
+                conn.outputStream.use {
+                    it.write(requestBody.toString().toByteArray(Charsets.UTF_8))
+                }
 
                 val responseText = conn.inputStream.bufferedReader().use { it.readText() }
-                val jsonArray = JSONArray(responseText)
+                val response = JSONObject(responseText)
+                if (!response.optString("status").equals("success", ignoreCase = true)) {
+                    throw IllegalStateException(response.optString("message", "Akses data ditolak"))
+                }
+                val jsonArray = if (isAdmin) {
+                    response.optJSONArray("data") ?: JSONArray()
+                } else {
+                    JSONArray().put(response.optJSONObject("data") ?: JSONObject())
+                }
                 val tempList = mutableListOf<JSONObject>()
 
                 for (i in 0 until jsonArray.length()) {
@@ -167,7 +184,7 @@ fun UserManagementScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         SciFiBackground()
 
         Scaffold(
@@ -191,11 +208,11 @@ fun UserManagementScreen(
                                 }
                             },
                             modifier = Modifier.background(Color.White.copy(alpha = 0.08f), CircleShape)
-                        ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = Color.White) }
+                        ) { Icon(Icons.Default.ArrowBackIosNew, "Back", tint = MaterialTheme.colorScheme.onSurface) }
                         Spacer(Modifier.width(16.dp))
                         Text(
-                            text = if (showList) "DAFTAR SISTEM TEKNISI" else "EDIT PROFILE SIBER",
-                            color = Color.White,
+                            text = if (showList) "Daftar Teknisi" else "Edit Profil",
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
                             fontFamily = OrbitronFontFamily,
@@ -515,17 +532,27 @@ fun UserManagementScreen(
 private fun submitDataTeknisi(context: android.content.Context, payload: JSONObject, onComplete: () -> Unit) {
     CoroutineScope(Dispatchers.IO).launch {
         try {
-            val url = URL("https://script.google.com/macros/s/AKfycbx1UG3Pkc9YEbZZc9bKyP_Gg6Z9VaHfGl7OdvLt1ZFJRWIDlBNrqG7NJkgSlWSbZhQ/exec")
+            payload.put("token", UserSession.token)
+            val url = URL(APIConfig.USER_MANAGEMENT_URL)
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.doOutput = true
-            conn.setRequestProperty("Content-Type", "application/json")
+            conn.instanceFollowRedirects = true
+            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
 
-            conn.outputStream.use { it.write(payload.toString().toByteArray()) }
+            conn.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
             val responseCode = conn.responseCode
+            val responseText = if (responseCode in 200..299) {
+                conn.inputStream.bufferedReader().use { it.readText() }
+            } else {
+                conn.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            }
+            val result = runCatching { JSONObject(responseText) }.getOrNull()
+            val success = responseCode in 200..299 &&
+                    result?.optString("status").equals("success", ignoreCase = true)
 
             withContext(Dispatchers.Main) {
-                if (responseCode in 200..299) {
+                if (success) {
                     Toast.makeText(context, "✅ Sinkronisasi Database Berhasil!", Toast.LENGTH_LONG).show()
                     onComplete()
                 } else {

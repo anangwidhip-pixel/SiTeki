@@ -3,6 +3,7 @@ package com.example.sitekiver01.repository
 import android.util.Log
 import com.example.sitekiver01.model.Mesin
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Source
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -20,6 +21,8 @@ class MesinRepository {
                 val url = URL(scriptUrl)
                 val connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = "GET"
+                connection.connectTimeout = 10_000
+                connection.readTimeout = 30_000
                 
                 val response = connection.inputStream.bufferedReader().use { it.readText() }
                 val jsonArray = JSONArray(response)
@@ -58,16 +61,29 @@ class MesinRepository {
                 batch.set(docRef, data)
             }
             batch.commit().await()
+            memoryCache = emptyList()
+            cacheTime = 0L
             Result.success(spreadsheetData.size)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun getAllMesin(): List<Mesin> {
+    suspend fun getAllMesin(forceRefresh: Boolean = false): List<Mesin> {
+        val now = System.currentTimeMillis()
+        if (!forceRefresh && memoryCache.isNotEmpty() && now - cacheTime < CACHE_TTL_MS) {
+            return memoryCache
+        }
         return try {
-            val snapshot = mesinCollection.get().await()
-            snapshot.documents.mapNotNull { doc ->
+            val cachedSnapshot = if (!forceRefresh) runCatching {
+                mesinCollection.get(Source.CACHE).await()
+            }.getOrNull() else null
+            val snapshot = if (cachedSnapshot != null && !cachedSnapshot.isEmpty) {
+                cachedSnapshot
+            } else {
+                mesinCollection.get(Source.SERVER).await()
+            }
+            val result = snapshot.documents.mapNotNull { doc ->
                 Mesin(
                     id = doc.id,
                     kategori = doc.getString("Kategori") ?: doc.getString("kategori") ?: "",
@@ -75,8 +91,19 @@ class MesinRepository {
                     nama = doc.getString("Nama") ?: doc.getString("nama") ?: ""
                 )
             }
+            if (result.isNotEmpty()) {
+                memoryCache = result
+                cacheTime = now
+            }
+            result
         } catch (e: Exception) {
-            emptyList()
+            memoryCache
         }
+    }
+
+    companion object {
+        private const val CACHE_TTL_MS = 15 * 60 * 1000L
+        @Volatile private var cacheTime = 0L
+        @Volatile private var memoryCache: List<Mesin> = emptyList()
     }
 }

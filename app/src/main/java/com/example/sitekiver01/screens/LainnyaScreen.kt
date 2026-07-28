@@ -45,8 +45,11 @@ fun LainnyaScreen(
     onNavigateToTravo: () -> Unit //
 ) {
     val context = LocalContext.current
+    val primary = MaterialTheme.colorScheme.primary
+    val secondary = MaterialTheme.colorScheme.secondary
+    val tertiary = MaterialTheme.colorScheme.tertiary
 
-    Box(modifier = Modifier.fillMaxSize().background(GlassBase)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
 
         // PONDASI UTAMA: Background Mesh Grid Animasi Global
         SciFiBackground()
@@ -55,48 +58,46 @@ fun LainnyaScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(20.dp),
+                .padding(horizontal = 20.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // TOP BAR NAVIGASI SIBER
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(
                     onClick = onBack,
-                    modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
                 ) {
-                    Icon(Icons.Default.ArrowBackIosNew, "Back", tint = Color.White, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.ArrowBackIosNew, "Back", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp))
                 }
                 Spacer(Modifier.width(16.dp))
                 Text(
-                    text = "MENU LAINNYA",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White,
-                    fontFamily = OrbitronFontFamily,
-                    letterSpacing = 1.sp
+                    text = "Ruang pendukung",
+                    fontSize = 25.sp,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
             Spacer(Modifier.height(4.dp))
-            ModernSectionHeader("NAVIGASI SUB SISTEM", Icons.Default.Apps)
+            Text(
+                "Pilih modul untuk melanjutkan pekerjaan.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp
+            )
 
             // GRID MENU UTAMA (TRANSPARAN KACA HUD)
             LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                columns = GridCells.Fixed(1),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(bottom = 20.dp)
             ) {
                 // REVISI: Menu "USER" dihapus, tersisa 7 menu fungsional agar simetris & bersih
                 val menuItems = listOf(
-                    MenuItem("Teknisi", Icons.Default.Person, SciFiCyan, "Manajemen Teknisi"),
-                    MenuItem("Travo", Icons.Default.ElectricBolt, SciFiSaturday, "Monitoring Trafo"),
-                    MenuItem("Lemburan", Icons.Default.AccessTime, SciFiStatusM, "Pengajuan Lembur"),
-                    MenuItem("Katalog", Icons.Default.MenuBook, SciFiCyan, "Katalog Produk"),
-                    MenuItem("Menu 6", Icons.Default.Info, SciFiCyan, "Informasi"),
-                    MenuItem("Menu 7", Icons.Default.Favorite, Color(0xFFC23B22), "Favorit"),
-                    MenuItem("Setting", Icons.Default.Settings, SciFiCyan, "Pengaturan")
+                    MenuItem("Teknisi", Icons.Default.Person, primary, "Manajemen profil dan akses teknisi"),
+                    MenuItem("Travo", Icons.Default.ElectricBolt, tertiary, "Inspeksi dan monitoring transformator"),
+                    MenuItem("Lemburan", Icons.Default.AccessTime, secondary, "Pengajuan dan riwayat kerja lembur"),
+                    MenuItem("Katalog", Icons.Default.MenuBook, primary, "Referensi produk dan kebutuhan teknik")
                 )
 
                 items(menuItems) { item ->
@@ -137,43 +138,23 @@ private fun NeonMenuCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(1.05f)
+            .height(82.dp)
             .scale(scale)
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
-        shape = RoundedCornerShape(24.dp),
-        color = SciFiGlass,
-        border = BorderStroke(
-            width = 1.dp,
-            brush = Brush.verticalGradient(
-                colors = if (isPressed) listOf(menuItem.color, Color.Transparent)
-                else listOf(SciFiBorderLight, Color.Transparent)
-            )
-        )
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        shadowElevation = if (isPressed) 0.dp else 3.dp
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Efek Reaktor Neon Glow Belakang Saat Ditekan
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blur(20.dp)
-                    .background(
-                        color = menuItem.color.copy(alpha = if (isPressed) 0.18f else 0.03f),
-                        shape = RoundedCornerShape(24.dp)
-                    )
-            )
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(12.dp).align(Alignment.Center)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp)
             ) {
-                // Lingkaran Dudukan Ikon Menu
                 Box(
                     modifier = Modifier
-                        .size(54.dp)
-                        .background(menuItem.color.copy(alpha = 0.08f), CircleShape)
-                        .border(1.dp, menuItem.color.copy(alpha = 0.2f), CircleShape)
-                        .clip(CircleShape),
+                        .size(46.dp)
+                        .background(menuItem.color.copy(alpha = 0.12f), RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -184,27 +165,13 @@ private fun NeonMenuCard(
                     )
                 }
 
-                Spacer(Modifier.height(10.dp))
-
-                Text(
-                    text = menuItem.title.uppercase(),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    color = Color.White,
-                    fontFamily = OrbitronFontFamily,
-                    letterSpacing = 0.5.sp
-                )
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                Text(
-                    text = menuItem.subtitle,
-                    fontSize = 11.sp,
-                    color = SciFiTextMuted,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(menuItem.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                    Spacer(Modifier.height(3.dp))
+                    Text(menuItem.subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Icon(Icons.Default.ArrowForward, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
             }
         }
     }
